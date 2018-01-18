@@ -1,0 +1,66 @@
+exec-raw
+CREATE DATABASE t
+
+exec-raw
+CREATE TABLE t.a (x INT PRIMARY KEY, y FLOAT)
+
+build
+SELECT * FROM t.a
+----
+3: [variable a.y]
+2: [variable a.x]
+1: [scan a]
+
+build
+SELECT * FROM t.b
+----
+error: table missing
+
+build
+SELECT * FROM b
+----
+error: database missing
+
+build
+SELECT * FROM u.a
+----
+error: database missing
+
+build
+SELECT * FROM t.a WHERE x > 10
+----
+6: [variable a.y]
+5: [select [1 4]]
+4: [gt [2 3]]
+3: [const 10]
+2: [variable a.x]
+1: [scan a]
+
+build
+SELECT * FROM t.a WHERE (x > 10 AND (x < 20 AND x != 13))
+----
+12: [variable a.y]
+11: [select [1 10]]
+10: [and [4 9]]
+9: [and [6 8]]
+8: [ne [2 7]]
+7: [const 13]
+6: [lt [2 5]]
+5: [const 20]
+4: [gt [2 3]]
+3: [const 10]
+2: [variable a.x]
+1: [scan a]
+
+build
+SELECT * FROM t.a WHERE x IN (1, 2, 3)
+----
+9: [variable a.y]
+8: [select [1 7]]
+7: [in [2 6]]
+6: [tuple [3 4 5]]
+5: [const 3]
+4: [const 2]
+3: [const 1]
+2: [variable a.x]
+1: [scan a]

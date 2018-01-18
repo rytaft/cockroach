@@ -14,6 +14,8 @@
 
 package xform
 
+import "github.com/cockroachdb/cockroach/pkg/sql/optbase"
+
 // Factory constructs a normalized expression tree within the memo. As each
 // kind of expression is constructed by the factory, it transitively runs
 // normalization transformations defined for that expression type. This may
@@ -38,9 +40,21 @@ type Factory struct {
 	maxSteps int
 }
 
+// NewFactory returns a new Factory structure with a new, blank memo
+// structure inside.
+func NewFactory(catalog optbase.Catalog, maxSteps int) *Factory {
+	return newFactory(newMemo(catalog), maxSteps)
+}
+
 func newFactory(mem *memo, maxSteps int) *Factory {
 	f := &Factory{mem: mem, maxSteps: maxSteps}
 	return f
+}
+
+// MemoString returns a human-readable representation of the memo structure
+// in this factory.
+func (f *Factory) MemoString() string {
+	return f.mem.String()
 }
 
 // Metadata returns the query-specific metadata, which includes information
