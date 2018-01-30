@@ -935,6 +935,20 @@ func (b *Builder) buildProjection(projection tree.Expr, inScope, outScope *scope
 	}
 }
 
+// buildDistinct builds a set of memo groups that represent a DISTINCT
+// expression.
+//
+// in        contains the memo group ID of the input expression.
+// distinct  is true if this is a DISTINCT expression. If distinct is false,
+//           we just return `in`.
+// byCols    is the set of columns in the DISTINCT expression. Since
+//           DISTINCT is equivalent to GROUP BY without any aggregations,
+//           byCols are essentially the grouping columns.
+// inScope   contains the name bindings that are visible for this DISTINCT
+//           expression (e.g., passed in from an enclosing statement).
+//
+// The return value corresponds to the top-level memo group ID for this
+// DISTINCT expression.
 func (b *Builder) buildDistinct(in xform.GroupID, distinct bool, byCols []columnProps, inScope *scope) xform.GroupID {
 	if !distinct {
 		return in
