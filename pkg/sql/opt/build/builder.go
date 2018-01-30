@@ -354,6 +354,15 @@ func (b *Builder) buildUsingJoin(
 	return b.constructJoin(join.Join, left, right, filter), outScope
 }
 
+// buildUsingJoinParts builds a set of memo groups that represent the join
+// conditions for a USING join or natural join. It finds the columns in the
+// left and right relations that match the columns provided in the names
+// parameter, and creates equality predicate(s) with those columns. It also
+// ensures that only one of the equal columns appear in the output by
+// marking the other column as "hidden".
+//
+// See Builder.buildStmt above for a description of the remaining input and
+// return values.
 func (b *Builder) buildUsingJoinParts(
 	leftCols []columnProps,
 	rightCols []columnProps,
