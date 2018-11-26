@@ -21,9 +21,12 @@ import (
 	"github.com/axiomhq/hyperloglog"
 	"github.com/pkg/errors"
 
+	"time"
+
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
 	"github.com/cockroachdb/cockroach/pkg/sql/stats"
+	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"github.com/cockroachdb/cockroach/pkg/util/randutil"
 	"github.com/cockroachdb/cockroach/pkg/util/tracing"
 )
@@ -96,7 +99,7 @@ func newSamplerProcessor(
 		}
 	}
 
-	s.sr.Init(int(spec.SampleSize))
+	s.sr.Init(int(spec.SampleSize), input.OutputTypes())
 
 	inTypes := input.OutputTypes()
 	outTypes := make([]sqlbase.ColumnType, 0, len(inTypes)+5)
@@ -165,6 +168,7 @@ func (s *samplerProcessor) mainLoop(ctx context.Context) (earlyExit bool, _ erro
 	var da sqlbase.DatumAlloc
 	var ra sqlbase.EncDatumRowAlloc
 	var buf []byte
+	rows := 0
 	for {
 		row, meta := s.input.Next()
 		if meta != nil {
@@ -176,6 +180,11 @@ func (s *samplerProcessor) mainLoop(ctx context.Context) (earlyExit bool, _ erro
 		}
 		if row == nil {
 			break
+		}
+		rows++
+		if rows%1000 == 0 {
+			//log.Infof(ctx, "seen %d rows", rows)
+			time.Sleep(5 * time.Millisecond)
 		}
 
 		for i := range s.sketches {
@@ -200,17 +209,24 @@ func (s *samplerProcessor) mainLoop(ctx context.Context) (earlyExit bool, _ erro
 
 		// Use Int63 so we don't have headaches converting to DInt.
 		rank := uint64(rng.Int63())
-		row = ra.CopyRow(row)
-		s.sr.SampleRow(row, rank)
+		s.sr.SampleRow(row, &ra, rank)
 	}
 
+	log.Infof(ctx, "seen %d rows", rows)
+	log.Infof(ctx, "sampled %d rows", s.sr.Len())
 	outRow := make(sqlbase.EncDatumRow, len(s.outTypes))
 	for i := range outRow {
 		outRow[i] = sqlbase.DatumToEncDatum(s.outTypes[i], tree.DNull)
 	}
+	// Release the memory for the sampled rows.
+	s.sr = stats.SampleReservoir{}
+
 	// Emit the sampled rows.
 	for _, sample := range s.sr.Get() {
-		copy(outRow, sample.Row)
+		//copy(outRow, sample.Row)
+		for i := range sample.Row {
+			outRow[i] = sqlbase.DatumToEncDatum(s.outTypes[i], sample.Row[i])
+		}
 		outRow[s.rankCol] = sqlbase.EncDatum{Datum: tree.NewDInt(tree.DInt(sample.Rank))}
 		if !emitHelper(ctx, &s.out, outRow, nil /* meta */, s.pushTrailingMeta, s.input) {
 			return true, nil

@@ -99,7 +99,7 @@ func newSampleAggregator(
 		}
 	}
 
-	s.sr.Init(int(spec.SampleSize))
+	s.sr.Init(int(spec.SampleSize), input.OutputTypes()[:rankCol])
 
 	if err := s.Init(
 		nil, post, []sqlbase.ColumnType{}, flowCtx, processorID, output, nil, /* memMonitor */
@@ -137,6 +137,7 @@ func (s *sampleAggregator) Run(ctx context.Context, wg *sync.WaitGroup) {
 
 func (s *sampleAggregator) mainLoop(ctx context.Context) (earlyExit bool, _ error) {
 	var da sqlbase.DatumAlloc
+	var ra sqlbase.EncDatumRowAlloc
 	var tmpSketch hyperloglog.Sketch
 	for {
 		row, meta := s.input.Next()
@@ -161,7 +162,7 @@ func (s *sampleAggregator) mainLoop(ctx context.Context) (earlyExit bool, _ erro
 				return false, errors.Wrapf(err, "decoding rank column")
 			}
 			// Retain the rows with the top ranks.
-			s.sr.SampleRow(row[:s.rankCol], uint64(rank))
+			s.sr.SampleRow(row[:s.rankCol], &ra, uint64(rank))
 			continue
 		}
 		// This is a sketch row.
@@ -260,23 +261,24 @@ func (s *sampleAggregator) writeResults(ctx context.Context) error {
 // numRows is the total number of rows from which values were sampled.
 func generateHistogram(
 	evalCtx *tree.EvalContext,
-	samples []stats.SampledRow,
+	samples []*stats.SampledRow,
 	colIdx int,
 	colType sqlbase.ColumnType,
 	numRows int64,
 	maxBuckets int,
 ) (stats.HistogramData, error) {
-	var da sqlbase.DatumAlloc
+	//var da sqlbase.DatumAlloc
 	values := make(tree.Datums, 0, len(samples))
 	for _, s := range samples {
-		ed := &s.Row[colIdx]
+		values = s.Row
+		//ed := &s.Row[colIdx]
 		// Ignore NULLs (they are counted separately).
-		if !ed.IsNull() {
-			if err := ed.EnsureDecoded(&colType, &da); err != nil {
-				return stats.HistogramData{}, err
-			}
-			values = append(values, ed.Datum)
-		}
+		//if !ed.IsNull() {
+		//	if err := ed.EnsureDecoded(&colType, &da); err != nil {
+		//		return stats.HistogramData{}, err
+		//	}
+		//	values = append(values, ed.Datum)
+		//}
 	}
 	return stats.EquiDepthHistogram(evalCtx, values, numRows, maxBuckets)
 }

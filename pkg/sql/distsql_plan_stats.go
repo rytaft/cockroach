@@ -28,7 +28,7 @@ type requestedStat struct {
 	name                string
 }
 
-const histogramSamples = 10000
+const histogramSamples = 1000
 const histogramBuckets = 200
 
 func (dsp *DistSQLPlanner) createStatsPlan(
@@ -62,6 +62,7 @@ func (dsp *DistSQLPlanner) createStatsPlan(
 	}
 
 	p, err := dsp.createTableReaders(planCtx, &scan, nil /* overrideResultColumns */)
+	//p, err := dsp.createTableReaders(planCtx, &scan, stats[0].columns)
 	if err != nil {
 		return PhysicalPlan{}, err
 	}

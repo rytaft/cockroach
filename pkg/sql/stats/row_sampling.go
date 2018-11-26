@@ -17,12 +17,13 @@ package stats
 import (
 	"container/heap"
 
+	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 	"github.com/cockroachdb/cockroach/pkg/sql/sqlbase"
 )
 
 // SampledRow is a row that was sampled.
 type SampledRow struct {
-	Row  sqlbase.EncDatumRow
+	Row  tree.Datums
 	Rank uint64
 }
 
@@ -42,14 +43,17 @@ type SampledRow struct {
 // requirement is that the capacity of each distributed reservoir must have been
 // at least as large as this reservoir.
 type SampleReservoir struct {
-	samples []SampledRow
+	samples  []*SampledRow
+	outTypes []sqlbase.ColumnType
+	da       sqlbase.DatumAlloc
 }
 
 var _ heap.Interface = &SampleReservoir{}
 
 // Init initializes a SampleReservoir.
-func (sr *SampleReservoir) Init(numSamples int) {
-	sr.samples = make([]SampledRow, 0, numSamples)
+func (sr *SampleReservoir) Init(numSamples int, outTypes []sqlbase.ColumnType) {
+	sr.samples = make([]*SampledRow, 0, numSamples)
+	sr.outTypes = outTypes
 }
 
 // Len is part of heap.Interface.
@@ -75,10 +79,15 @@ func (sr *SampleReservoir) Push(x interface{}) { panic("unimplemented") }
 func (sr *SampleReservoir) Pop() interface{} { panic("unimplemented") }
 
 // SampleRow looks at a row and either drops it or adds it to the reservoir.
-func (sr *SampleReservoir) SampleRow(row sqlbase.EncDatumRow, rank uint64) {
+func (sr *SampleReservoir) SampleRow(
+	row sqlbase.EncDatumRow, ra *sqlbase.EncDatumRowAlloc, rank uint64,
+) {
 	if len(sr.samples) < cap(sr.samples) {
 		// We haven't accumulated enough rows yet, just append.
-		sr.samples = append(sr.samples, SampledRow{Row: row, Rank: rank})
+		datums := make(tree.Datums, len(row))
+		sqlbase.EncDatumRowToDatums(sr.outTypes, datums, row, &sr.da)
+		sr.samples = append(sr.samples, &SampledRow{Row: datums, Rank: rank})
+		//sr.samples = append(sr.samples, &SampledRow{Row: ra.CopyRow(row), Rank: rank})
 		if len(sr.samples) == cap(sr.samples) {
 			// We just reached the limit; initialize the heap.
 			heap.Init(sr)
@@ -87,12 +96,13 @@ func (sr *SampleReservoir) SampleRow(row sqlbase.EncDatumRow, rank uint64) {
 	}
 	// Replace the max rank if ours is smaller.
 	if rank < sr.samples[0].Rank {
-		sr.samples[0] = SampledRow{Row: row, Rank: rank}
+		sqlbase.EncDatumRowToDatums(sr.outTypes, sr.samples[0].Row, row, &sr.da)
+		sr.samples[0].Rank = rank
 		heap.Fix(sr, 0)
 	}
 }
 
 // Get returns the sampled rows.
-func (sr *SampleReservoir) Get() []SampledRow {
+func (sr *SampleReservoir) Get() []*SampledRow {
 	return sr.samples
 }

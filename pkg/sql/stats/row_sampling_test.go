@@ -30,19 +30,20 @@ import (
 func runSampleTest(t *testing.T, numSamples int, ranks []int) {
 	typeInt := sqlbase.ColumnType{SemanticType: sqlbase.ColumnType_INT}
 	var sr SampleReservoir
-	sr.Init(numSamples)
+	var ra sqlbase.EncDatumRowAlloc
+	sr.Init(numSamples, []sqlbase.ColumnType{typeInt})
 	for _, r := range ranks {
 		d := sqlbase.DatumToEncDatum(typeInt, tree.NewDInt(tree.DInt(r)))
-		sr.SampleRow(sqlbase.EncDatumRow{d}, uint64(r))
+		sr.SampleRow(sqlbase.EncDatumRow{d}, &ra, uint64(r))
 	}
 	samples := sr.Get()
 	sampledRanks := make([]int, len(samples))
 
 	// Verify that the row and the ranks weren't mishandled.
 	for i, s := range samples {
-		if *s.Row[0].Datum.(*tree.DInt) != tree.DInt(s.Rank) {
+		if *s.Row[0].(*tree.DInt) != tree.DInt(s.Rank) {
 			t.Fatalf(
-				"mismatch between row %s and rank %d", s.Row.String([]sqlbase.ColumnType{typeInt}), s.Rank,
+				"mismatch between row %s and rank %d", s.Row.String(), s.Rank,
 			)
 		}
 		sampledRanks[i] = int(s.Rank)
