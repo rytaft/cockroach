@@ -132,6 +132,9 @@ type Flags struct {
 	//   [region=us,dc=east]
 	//
 	Locality roachpb.Locality
+
+	// The number of times to perform optimization on the given query.
+	Count uint64
 }
 
 // New constructs a new instance of the OptTester for the given SQL statement.
@@ -203,6 +206,12 @@ func New(catalog cat.Catalog, sql string) *OptTester {
 //    Builds an expression directly from an opt-gen-like string; see
 //    exprgen.Build.
 //
+//  - encode [flags]
+//
+//    Builds an expression tree from a SQL query, fully optimizes it using the
+//    memo, and then outputs the lowest cost tree in a format that can be
+//    understood by a neural network.
+//
 // Supported flags:
 //
 //  - format: controls the formatting of expressions for build, opt, and
@@ -238,6 +247,11 @@ func New(catalog cat.Catalog, sql string) *OptTester {
 //  - locality: used to set the locality of the node that plans the query. This
 //    can affect costing when there are multiple possible indexes to choose
 //    from, each in different localities.
+//
+//  - count: the number of times to perform optimization. Can be used in
+//    combination with perturb-cost to display several alternate output plans
+//    for the same query. Currently only works with the encode command. Plans
+//    are de-duplicated and printed in order of increasing cost.
 //
 func (ot *OptTester) RunCommand(tb testing.TB, d *datadriven.TestData) string {
 	// Allow testcases to override the flags.
@@ -347,6 +361,27 @@ func (ot *OptTester) RunCommand(tb testing.TB, d *datadriven.TestData) string {
 		}
 		ot.postProcess(tb, d, e)
 		return memo.FormatExpr(e, ot.Flags.ExprFormat)
+
+	case "encode":
+		count := 1
+		if ot.Flags.Count != 0 {
+			count = int(ot.Flags.Count)
+		}
+		ep := encodedPlans{}
+		ep.plans = make([]encodedPlan, count)
+		for i := 0; i < count; i++ {
+			e, err := ot.Optimize()
+			if err != nil {
+				d.Fatalf(tb, "%v", err)
+			}
+			enc := encoder{}
+			ep.plans[i] = encodedPlan{
+				cost:    e.(memo.RelExpr).Cost(),
+				encoded: enc.encode(e),
+			}
+		}
+		sort.Sort(ep)
+		return ep.String()
 
 	default:
 		d.Fatalf(tb, "unsupported command: %s", d.Cmd)
@@ -530,6 +565,16 @@ func (f *Flags) Set(arg datadriven.CmdArg) error {
 		// Recombine multiple arguments, separated by commas.
 		locality := strings.Join(arg.Vals, ",")
 		err := f.Locality.Set(locality)
+		if err != nil {
+			return err
+		}
+
+	case "count":
+		if len(arg.Vals) != 1 {
+			return fmt.Errorf("count requires one argument")
+		}
+		var err error
+		f.Count, err = strconv.ParseUint(arg.Vals[0], 10, 64)
 		if err != nil {
 			return err
 		}

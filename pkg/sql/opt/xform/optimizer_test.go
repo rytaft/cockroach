@@ -216,6 +216,20 @@ func TestExternal(t *testing.T) {
 	)
 }
 
+// TestEncode tests the encoder for the neural query optimizer.
+//
+// TestEncode files can be run separately like this:
+//   make test PKG=./pkg/sql/opt/xform TESTS="TestEncode/tpch"
+//   ...
+//
+// Test files from another location can be run using the -d flag:
+//   make test PKG=./pkg/sql/opt/xform TESTS=TestEncode TESTFLAGS='-d /some-dir'
+//
+func TestEncode(t *testing.T) {
+	defer leaktest.AfterTest(t)()
+	runDataDrivenTest(t, "testdata/encode/", memo.ExprFmtHideAll)
+}
+
 // runDataDrivenTest runs data-driven testcases of the form
 //   <command>
 //   <SQL statement>
