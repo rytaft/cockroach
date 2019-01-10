@@ -159,6 +159,7 @@ func (s *samplerProcessor) mainLoop(ctx context.Context) (earlyExit bool, _ erro
 	rng, _ := randutil.NewPseudoRand()
 	var da sqlbase.DatumAlloc
 	var buf []byte
+	rows := 0
 	for {
 		row, meta := s.input.Next()
 		if meta != nil {
@@ -170,6 +171,11 @@ func (s *samplerProcessor) mainLoop(ctx context.Context) (earlyExit bool, _ erro
 		}
 		if row == nil {
 			break
+		}
+		rows++
+		if rows%1000 == 0 {
+			//log.Infof(ctx, "seen %d rows", rows)
+			//time.Sleep(5 * time.Millisecond)
 		}
 
 		for i := range s.sketches {

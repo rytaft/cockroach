@@ -296,6 +296,22 @@ func (r *Refresher) maybeRefreshStats(
 	// make sure a new statistic was not just added. If not, proceed to the next
 	// step.
 
+	//if locked := r.lockStats(ctx, tableID); !locked {
+	if locked := r.lockStats(ctx, 1); !locked {
+		log.Infof(ctx, "failed to lock statistics for table %d", tableID)
+		return
+	}
+	log.Infof(ctx, "locked statistics for table %d!", tableID)
+
+	defer func() {
+		//if unlocked := r.unlockStats(ctx, tableID); !unlocked {
+		if unlocked := r.unlockStats(ctx, 1); !unlocked {
+			log.Infof(ctx, "failed to unlock statistics for table %d", tableID)
+			return
+		}
+		log.Infof(ctx, "unlocked statistics for table %d!", tableID)
+	}()
+
 	if err := r.refreshStats(ctx, tableID, asOf); err != nil {
 		pgerr, ok := errors.Cause(err).(*pgerror.Error)
 		if ok && pgerr.Code == pgerror.CodeUndefinedTableError {
@@ -324,6 +340,45 @@ func (r *Refresher) refreshStats(
 		),
 	)
 	return err
+}
+
+func (r *Refresher) lockStats(ctx context.Context, tableID sqlbase.ID) bool {
+	rows, err := r.ex.Exec(
+		ctx,
+		"lock-stats",
+		nil, /* txn */
+		fmt.Sprintf(`INSERT INTO system.table_statistics (
+			"tableID",
+			"statisticID",
+			"columnIDs",
+			"rowCount",
+			"distinctCount",
+			"nullCount") VALUES (-1, %d, ARRAY[]:::int[], 0, 0, 0);`,
+			tableID,
+		),
+	)
+	if err != nil {
+		log.Infof(ctx, "failed to lock statistics: %v", err)
+		return false
+	}
+	return rows != 0
+}
+
+func (r *Refresher) unlockStats(ctx context.Context, tableID sqlbase.ID) bool {
+	rows, err := r.ex.Exec(
+		ctx,
+		"unlock-stats",
+		nil, /* txn */
+		fmt.Sprintf(`DELETE FROM system.table_statistics WHERE
+			"tableID" = -1 AND "statisticID" = %d;`,
+			tableID,
+		),
+	)
+	if err != nil {
+		log.Infof(ctx, "failed to unlock statistics: %v", err)
+		return false
+	}
+	return rows != 0
 }
 
 // mostRecentAutomaticStat finds the most recent automatic statistic

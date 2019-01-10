@@ -1,0 +1,43 @@
+Locking per table only:
+
+_elapsed___errors_____ops(total)___ops/sec(cum)__avg(ms)__p50(ms)__p95(ms)__p99(ms)_pMax(ms)__result
+  600.0s        0         108693          181.2   2101.9    838.9   9663.7  22548.6  98784.2  
+
+_elapsed_______tpmC____efc__avg(ms)__p50(ms)__p90(ms)__p95(ms)__p99(ms)_pMax(ms)
+  600.0s     4668.4  90.8%   1998.2   1040.2   4026.5   8053.1  16643.0  49392.1
+
+
+Throttling only:
+
+_elapsed___errors_____ops(total)___ops/sec(cum)__avg(ms)__p50(ms)__p95(ms)__p99(ms)_pMax(ms)__result
+  600.0s        0         110363          183.9   1694.1    805.3   7247.8  18253.6  62277.0  
+
+_elapsed_______tpmC____efc__avg(ms)__p50(ms)__p90(ms)__p95(ms)__p99(ms)_pMax(ms)
+  600.0s     4748.3  92.3%   1822.5    906.0   3355.4   7516.2  18253.6  45097.2
+
+
+Locking per table + throttling:
+
+_elapsed___errors_____ops(total)___ops/sec(cum)__avg(ms)__p50(ms)__p95(ms)__p99(ms)_pMax(ms)__result
+  600.0s        0         108561          180.9   2041.3   1040.2   8321.5  16106.1  90194.3  
+
+_elapsed_______tpmC____efc__avg(ms)__p50(ms)__p90(ms)__p95(ms)__p99(ms)_pMax(ms)
+  600.0s     4660.6  90.6%   2119.0   1208.0   4295.0   7516.2  15032.4  45097.2
+
+
+Global locking + throttling:
+
+_elapsed___errors_____ops(total)___ops/sec(cum)__avg(ms)__p50(ms)__p95(ms)__p99(ms)_pMax(ms)__result
+  600.0s        0         112211          187.0   1345.1    838.9   4295.0  12884.9  38654.7  
+
+_elapsed_______tpmC____efc__avg(ms)__p50(ms)__p90(ms)__p95(ms)__p99(ms)_pMax(ms)
+  600.0s     4824.7  93.8%   1466.6    906.0   2281.7   4160.7  13421.8  26843.5
+
+
+Global locking only:
+
+_elapsed___errors_____ops(total)___ops/sec(cum)__avg(ms)__p50(ms)__p95(ms)__p99(ms)_pMax(ms)__result
+  600.0s        0         109262          182.1   1799.7   1006.6   7247.8  16643.0  55834.6  
+
+_elapsed_______tpmC____efc__avg(ms)__p50(ms)__p90(ms)__p95(ms)__p99(ms)_pMax(ms)
+  600.0s     4699.2  91.4%   1902.0   1140.9   2952.8   6174.0  16643.0  40802.2
