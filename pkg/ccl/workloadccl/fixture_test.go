@@ -19,6 +19,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/cockroachdb/cockroach/pkg/base"
 	_ "github.com/cockroachdb/cockroach/pkg/ccl"
+	"github.com/cockroachdb/cockroach/pkg/sql/stats"
 	"github.com/cockroachdb/cockroach/pkg/testutils"
 	"github.com/cockroachdb/cockroach/pkg/testutils/serverutils"
 	"github.com/cockroachdb/cockroach/pkg/testutils/sqlutils"
@@ -71,6 +72,12 @@ func (g fixtureTestGen) Tables() []workload.Table {
 				return []interface{}{rowIdx, g.val}
 			},
 		),
+		Stats: []stats.JSONStatistic{
+			// Use stats that *don't* match reality, so we can test that these
+			// stats were injected and not calculated by CREATE STATISTICS.
+			workload.MakeStat([]string{"key"}, 100, 100, 0),
+			workload.MakeStat([]string{"value"}, 100, 1, 5),
+		},
 	}}
 }
 
@@ -167,19 +174,40 @@ func TestImportFixture(t *testing.T) {
 
 	const filesPerNode = 1
 	sqlDB.Exec(t, `CREATE DATABASE distsort`)
-	_, err := ImportFixture(ctx, db, gen, `distsort`, false /* directIngestion */, filesPerNode)
+	_, err := ImportFixture(
+		ctx, db, gen, `distsort`, false /* directIngestion */, filesPerNode, true, /* injectStats */
+	)
 	require.NoError(t, err)
 	sqlDB.CheckQueryResults(t,
 		`SELECT count(*) FROM distsort.fx`, [][]string{{strconv.Itoa(fixtureTestGenRows)}})
 
+	sqlDB.CheckQueryResults(t,
+		`SELECT statistics_name, column_names, row_count, distinct_count, null_count
+           FROM [SHOW STATISTICS FOR TABLE distsort.fx]`,
+		[][]string{
+			{"__auto__", "{key}", "100", "100", "0"},
+			{"__auto__", "{value}", "100", "1", "5"},
+		})
+
 	sqlDB.Exec(t, `CREATE DATABASE direct`)
-	_, err = ImportFixture(ctx, db, gen, `direct`, true /* directIngestion */, filesPerNode)
+	_, err = ImportFixture(
+		ctx, db, gen, `direct`, true /* directIngestion */, filesPerNode, true, /* injectStats */
+	)
 	require.NoError(t, err)
 	sqlDB.CheckQueryResults(t,
 		`SELECT count(*) FROM direct.fx`, [][]string{{strconv.Itoa(fixtureTestGenRows)}})
 
 	fingerprints := sqlDB.QueryStr(t, `SHOW EXPERIMENTAL_FINGERPRINTS FROM TABLE distsort.fx`)
 	sqlDB.CheckQueryResults(t, `SHOW EXPERIMENTAL_FINGERPRINTS FROM TABLE direct.fx`, fingerprints)
+
+	sqlDB.CheckQueryResults(t,
+		`SELECT statistics_name, column_names, row_count, distinct_count, null_count
+           FROM [SHOW STATISTICS FOR TABLE direct.fx]`,
+		[][]string{
+			{"__auto__", "{key}", "100", "100", "0"},
+			{"__auto__", "{value}", "100", "1", "5"},
+		})
+
 }
 
 func BenchmarkImportFixtureTPCC(b *testing.B) {
@@ -198,7 +226,9 @@ func BenchmarkImportFixtureTPCC(b *testing.B) {
 
 		b.StartTimer()
 		const filesPerNode = 1
-		importBytes, err := ImportFixture(ctx, db, gen, `d`, true /* directIngestion */, filesPerNode)
+		importBytes, err := ImportFixture(
+			ctx, db, gen, `d`, true /* directIngestion */, filesPerNode, true, /* injectStats */
+		)
 		require.NoError(b, err)
 		bytes += importBytes
 		b.StopTimer()
