@@ -294,7 +294,7 @@ TABLE lineitem
 # LINESTATUS, and listed in ascending order of RETURNFLAG and LINESTATUS. A
 # count of the number of lineitems in each group is included.
 # --------------------------------------------------
-encode perturb-cost=(100.0) count=300
+encode perturb-cost=(100.0) join-limit=8 count=3000
 SELECT
     l_returnflag,
     l_linestatus,

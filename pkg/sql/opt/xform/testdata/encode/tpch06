@@ -296,7 +296,7 @@ TABLE lineitem
 # increase is equal to the sum of [l_extendedprice * l_discount] for all
 # lineitems with discounts and quantities in the qualifying range.
 # --------------------------------------------------
-encode perturb-cost=(100.0) count=300
+encode perturb-cost=(100.0) join-limit=8 count=3000
 SELECT
     sum(l_extendedprice * l_discount) AS revenue
 FROM

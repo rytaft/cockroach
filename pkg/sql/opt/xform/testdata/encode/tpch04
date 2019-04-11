@@ -292,7 +292,7 @@ TABLE lineitem
 # committed date. The query lists the count of such orders for each order
 # priority sorted in ascending priority order.
 # --------------------------------------------------
-encode perturb-cost=(100.0) count=300
+encode perturb-cost=(100.0) join-limit=8 count=3000
 SELECT
     o_orderpriority,
     count(*) AS order_count
