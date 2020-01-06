@@ -18,6 +18,8 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/config"
 	"github.com/cockroachdb/cockroach/pkg/keys"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
+	"github.com/cockroachdb/cockroach/pkg/server/serverpb"
+	"github.com/cockroachdb/cockroach/pkg/server/status/statuspb"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/cat"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgcode"
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
@@ -49,6 +51,9 @@ type optCatalog struct {
 
 	// tn is a temporary name used during resolution to avoid heap allocation.
 	tn tree.TableName
+
+	nodeIDToLocality map[roachpb.NodeID]roachpb.Locality
+	nodeIDToActivity map[roachpb.NodeID]map[roachpb.NodeID]statuspb.NodeStatus_NetworkActivity
 }
 
 var _ cat.Catalog = &optCatalog{}
@@ -59,6 +64,20 @@ var _ cat.Catalog = &optCatalog{}
 func (oc *optCatalog) init(planner *planner) {
 	oc.planner = planner
 	oc.dataSources = make(map[*sqlbase.ImmutableTableDescriptor]cat.DataSource)
+
+	descriptors, err := getAllNodeDescriptors(oc.planner)
+	if err != nil {
+		panic(errors.NewAssertionErrorWithWrappedErrf(err, "while getting node descriptors"))
+	}
+	oc.nodeIDToLocality = make(map[roachpb.NodeID]roachpb.Locality)
+	for _, desc := range descriptors {
+		oc.nodeIDToLocality[desc.NodeID] = desc.Locality
+	}
+	response, err := planner.ExecCfg().StatusServer.Nodes(planner.EvalContext().Context, &serverpb.NodesRequest{})
+	oc.nodeIDToActivity = make(map[roachpb.NodeID]map[roachpb.NodeID]statuspb.NodeStatus_NetworkActivity)
+	for _, n := range response.Nodes {
+		oc.nodeIDToActivity[n.Desc.NodeID] = n.Activity
+	}
 }
 
 // reset prepares the optCatalog to be used for a new query.
@@ -293,6 +312,14 @@ func (oc *optCatalog) FullyQualifiedName(
 	return tree.MakeTableName(tree.Name(dbDesc.Name), tree.Name(desc.Name)), nil
 }
 
+func (oc *optCatalog) GetNodeLocality() map[roachpb.NodeID]roachpb.Locality {
+	return oc.nodeIDToLocality
+}
+
+func (oc *optCatalog) GetNodeActivity() map[roachpb.NodeID]map[roachpb.NodeID]statuspb.NodeStatus_NetworkActivity {
+	return oc.nodeIDToActivity
+}
+
 // dataSourceForDesc returns a data source wrapper for the given descriptor.
 // The wrapper might come from the cache, or it may be created now.
 func (oc *optCatalog) dataSourceForDesc(
@@ -366,7 +393,7 @@ func (oc *optCatalog) dataSourceForTable(
 		return ds, nil
 	}
 
-	ds, err := newOptTable(desc, tableStats, zoneConfig)
+	ds, err := newOptTable(ctx, desc, tableStats, zoneConfig, oc.planner)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +563,11 @@ type optTable struct {
 var _ cat.Table = &optTable{}
 
 func newOptTable(
-	desc *sqlbase.ImmutableTableDescriptor, stats []*stats.TableStatistic, tblZone *config.ZoneConfig,
+	ctx context.Context,
+	desc *sqlbase.ImmutableTableDescriptor,
+	stats []*stats.TableStatistic,
+	tblZone *config.ZoneConfig,
+	planner *planner,
 ) (*optTable, error) {
 	ot := &optTable{
 		desc:     desc,
@@ -566,15 +597,20 @@ func newOptTable(
 		// else use the table zone. Skip subzones that apply to partitions,
 		// since they apply only to a subset of the index.
 		idxZone := tblZone
+		partZones := make(map[string]*config.ZoneConfig)
 		for j := range tblZone.Subzones {
 			subzone := &tblZone.Subzones[j]
-			if subzone.IndexID == uint32(idxDesc.ID) && subzone.PartitionName == "" {
+			if subzone.IndexID == uint32(idxDesc.ID) {
 				copyZone := subzone.Config
 				copyZone.InheritFromParent(tblZone)
-				idxZone = &copyZone
+				if subzone.PartitionName == "" {
+					idxZone = &copyZone
+				} else {
+					partZones[subzone.PartitionName] = &copyZone
+				}
 			}
 		}
-		ot.indexes[i].init(ot, i, idxDesc, idxZone)
+		ot.indexes[i].init(ctx, ot, i, idxDesc, idxZone, partZones, planner)
 	}
 
 	for i := range ot.desc.OutboundFKs {
@@ -831,13 +867,16 @@ func (ot *optTable) lookupColumnOrdinal(colID sqlbase.ColumnID) (int, error) {
 // optIndex is a wrapper around sqlbase.IndexDescriptor that caches some
 // commonly accessed information and keeps a reference to the table wrapper.
 type optIndex struct {
-	tab  *optTable
-	desc *sqlbase.IndexDescriptor
-	zone *config.ZoneConfig
+	tab       *optTable
+	desc      *sqlbase.IndexDescriptor
+	zone      *config.ZoneConfig
+	partZones map[string]*config.ZoneConfig
 
 	// storedCols is the set of non-PK columns if this is the primary index,
 	// otherwise it is desc.StoreColumnIDs.
 	storedCols []sqlbase.ColumnID
+
+	ranges []cat.Range
 
 	indexOrdinal  int
 	numCols       int
@@ -850,11 +889,18 @@ var _ cat.Index = &optIndex{}
 // init can be used instead of newOptIndex when we have a pre-allocated instance
 // (e.g. as part of a bigger struct).
 func (oi *optIndex) init(
-	tab *optTable, indexOrdinal int, desc *sqlbase.IndexDescriptor, zone *config.ZoneConfig,
+	ctx context.Context,
+	tab *optTable,
+	indexOrdinal int,
+	desc *sqlbase.IndexDescriptor,
+	zone *config.ZoneConfig,
+	partZones map[string]*config.ZoneConfig,
+	planner *planner,
 ) {
 	oi.tab = tab
 	oi.desc = desc
 	oi.zone = zone
+	oi.partZones = partZones
 	oi.indexOrdinal = indexOrdinal
 	if desc == &tab.desc.PrimaryIndex {
 		// Although the primary index contains all columns in the table, the index
@@ -906,6 +952,36 @@ func (oi *optIndex) init(
 		oi.numLaxKeyCols = len(desc.ColumnIDs) + len(desc.ExtraColumnIDs)
 		oi.numKeyCols = oi.numLaxKeyCols
 	}
+
+	span := oi.tab.desc.IndexSpan(oi.desc.ID)
+
+	ranges, err := ScanMetaKVs(ctx, planner.Txn(), span)
+	if err != nil {
+		panic(errors.NewAssertionErrorWithWrappedErrf(err, "while scanning meta KVs"))
+	}
+	oi.ranges = make([]cat.Range, len(ranges))
+	for i := range ranges {
+		var rangeDesc roachpb.RangeDescriptor
+		if err := ranges[i].ValueProto(&rangeDesc); err != nil {
+			panic(errors.NewAssertionErrorWithWrappedErrf(err, "while decoding range descriptor"))
+		}
+
+		// TODO(rytaft): update this to match logic in dist_sender.go to find
+		// leaseholder if needed, or assign a slice of possible nodes.
+		from, to := decodeRSpanToDatums(rangeDesc.RSpan())
+		oi.ranges[i] = cat.Range{
+			From:   from,
+			To:     to,
+			NodeID: rangeDesc.Replicas().Voters()[0].NodeID,
+		}
+	}
+}
+
+func decodeRSpanToDatums(span roachpb.RSpan) (from, to tree.Datums) {
+	// TODO(rytaft): this logic is completely wrong -- just a placeholder to give
+	// the idea.
+	return tree.Datums{tree.NewDString(span.Key.String())},
+		tree.Datums{tree.NewDString(span.EndKey.String())}
 }
 
 // ID is part of the cat.Index interface.
@@ -1020,6 +1096,53 @@ func (oi *optIndex) PartitionByListPrefixes() []tree.Datums {
 		}
 	}
 	return res
+}
+
+// PartitionByListPrefixes is part of the cat.Index interface.
+func (oi *optIndex) PartitionMapping() cat.Partitioning {
+	rng := oi.desc.Partitioning.Range
+	if len(rng) == 0 {
+		return cat.Partitioning{}
+	}
+	ranges := make([]cat.Range, 0, len(rng))
+
+	var a sqlbase.DatumAlloc
+	for i := range rng {
+		zone, ok := oi.partZones[rng[i].Name]
+		if !ok {
+			continue
+		}
+		fromEncBuf := rng[i].FromInclusive
+		from, _, err := sqlbase.DecodePartitionTuple(
+			&a, &oi.tab.desc.TableDescriptor, oi.desc, &oi.desc.Partitioning,
+			fromEncBuf, nil, /* prefixDatums */
+		)
+		if err != nil {
+			panic(errors.NewAssertionErrorWithWrappedErrf(err, "while decoding partition tuple"))
+		}
+		toEncBuf := rng[i].ToExclusive
+		to, _, err := sqlbase.DecodePartitionTuple(
+			&a, &oi.tab.desc.TableDescriptor, oi.desc, &oi.desc.Partitioning,
+			toEncBuf, nil, /* prefixDatums */
+		)
+		if err != nil {
+			panic(errors.NewAssertionErrorWithWrappedErrf(err, "while decoding partition tuple"))
+		}
+
+		// Ignore the MINVALUE and MAXVALUE case, where there is nothing to return.
+		if len(from.Datums) > 0 || len(to.Datums) > 0 {
+			ranges = append(ranges, cat.Range{
+				From: from.Datums,
+				To:   to.Datums,
+				Zone: zone,
+			})
+		}
+	}
+	return cat.Partitioning{Ranges: ranges}
+}
+
+func (oi *optIndex) Partitioning() cat.Partitioning {
+	return cat.Partitioning{Ranges: oi.ranges}
 }
 
 type optTableStat struct {

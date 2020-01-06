@@ -39,6 +39,8 @@ type Provided struct {
 	// Note: we store a Provided structure in-place within each group because the
 	// struct is very small (see memo.bestProps). If we add more fields here, that
 	// decision needs to be revisited.
+
+	Distribution Partitioning
 }
 
 // Equals returns true if the two sets of provided properties are identical.

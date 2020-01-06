@@ -165,6 +165,8 @@ type Index interface {
 	//   [ /us/seattle\x00 -               ]
 	//
 	PartitionByListPrefixes() []tree.Datums
+
+	Partitioning() Partitioning
 }
 
 // IndexColumn describes a single column that is part of an index definition.

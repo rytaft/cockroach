@@ -177,6 +177,10 @@ func (m *Memo) Init(evalCtx *tree.EvalContext) {
 	m.curWithID = 0
 }
 
+func (m *Memo) AddNodeInfo(catalog cat.Catalog) {
+	m.metadata.AddNodeInfo(catalog)
+}
+
 // NotifyOnNewGroup sets a callback function which is invoked each time we
 // create a new memo group.
 func (m *Memo) NotifyOnNewGroup(fn func(opt.Expr)) {

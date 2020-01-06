@@ -243,6 +243,14 @@ func formatCatalogIndex(tab Table, ord int, tp treeprinter.Node) {
 			c.Child(partPrefixes[i].String())
 		}
 	}
+
+	dist := idx.Partitioning()
+	if len(dist.Ranges) != 0 {
+		c := child.Child("distribution")
+		for i := range dist.Ranges {
+			c.Child(dist.Ranges[i].String())
+		}
+	}
 }
 
 // formatColPrefix returns a string representation of a list of columns. The

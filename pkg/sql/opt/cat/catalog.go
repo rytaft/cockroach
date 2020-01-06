@@ -15,6 +15,9 @@ package cat
 import (
 	"context"
 
+	"github.com/cockroachdb/cockroach/pkg/roachpb"
+	"github.com/cockroachdb/cockroach/pkg/server/status/statuspb"
+
 	"github.com/cockroachdb/cockroach/pkg/sql/privilege"
 	"github.com/cockroachdb/cockroach/pkg/sql/sem/tree"
 )
@@ -137,4 +140,8 @@ type Catalog interface {
 	//  - the fully qualified name of a data source object can change without the
 	//    object itself changing (e.g. when a database is renamed).
 	FullyQualifiedName(ctx context.Context, ds DataSource) (DataSourceName, error)
+
+	GetNodeLocality() map[roachpb.NodeID]roachpb.Locality
+
+	GetNodeActivity() map[roachpb.NodeID]map[roachpb.NodeID]statuspb.NodeStatus_NetworkActivity
 }

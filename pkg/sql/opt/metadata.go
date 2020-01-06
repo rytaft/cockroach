@@ -94,6 +94,7 @@ type Metadata struct {
 	views []cat.View
 
 	// NOTE! When adding fields here, update CopyFrom.
+	nodes []NodeMeta
 }
 
 type mdDep struct {
@@ -139,6 +140,24 @@ func (md *Metadata) Init() {
 	md.tables = md.tables[:0]
 	md.views = md.views[:0]
 	md.deps = md.deps[:0]
+	md.nodes = md.nodes[:0]
+}
+
+func (md *Metadata) AddNodeInfo(catalog cat.Catalog) {
+	if catalog == nil {
+		return
+	}
+	activity := catalog.GetNodeActivity()
+	md.nodes = make([]NodeMeta, 0, len(activity))
+	// TODO(rytaft): make the metaID based on position in slice rather than
+	// original node ID.
+	for nodeID, activity := range activity {
+		md.nodes = append(md.nodes, NodeMeta{
+			MetaID:   nodeID,
+			Activity: activity,
+			// TODO(rytaft): add locality info too.
+		})
+	}
 }
 
 // CopyFrom initializes the metadata with a copy of the provided metadata.
@@ -164,6 +183,7 @@ func (md *Metadata) CopyFrom(from *Metadata) {
 
 	md.sequences = append(md.sequences, from.sequences...)
 	md.deps = append(md.deps, from.deps...)
+	md.nodes = append(md.nodes, from.nodes...)
 }
 
 // DepByName is used with AddDependency when the data source was looked up using a

@@ -11,12 +11,14 @@
 package xform
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/cat"
+	"github.com/cockroachdb/cockroach/pkg/sql/opt/constraint"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/memo"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/ordering"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/props/physical"
@@ -75,11 +77,15 @@ type coster struct {
 	//
 	locality roachpb.Locality
 
+	nodeID roachpb.NodeID
+
 	// perturbation indicates how much to randomly perturb the cost. It is used
 	// to generate alternative plans for testing. For example, if perturbation is
 	// 0.5, and the estimated cost of an expression is c, the cost returned by
 	// ComputeCost will be in the range [c - 0.5 * c, c + 0.5 * c).
 	perturbation float64
+
+	evalCtx *tree.EvalContext
 }
 
 var _ Coster = &coster{}
@@ -128,8 +134,10 @@ const (
 
 // Init initializes a new coster structure with the given memo.
 func (c *coster) Init(evalCtx *tree.EvalContext, mem *memo.Memo, perturbation float64) {
+	c.evalCtx = evalCtx
 	c.mem = mem
 	c.locality = evalCtx.Locality
+	c.nodeID = evalCtx.NodeID
 	c.perturbation = perturbation
 }
 
@@ -280,6 +288,7 @@ func (c *coster) computeScanCost(scan *memo.ScanExpr, required *physical.Require
 	}
 	rowCount := scan.Relational().Stats.RowCount
 	perRowCost := c.rowScanCost(scan.Table, scan.Index, scan.Cols.Len())
+	additionalCost := c.additionalScanCost(scan.Table, scan.Index, scan.Constraint, c.nodeID)
 
 	if ordering.ScanIsReverse(scan, &required.Ordering) {
 		if rowCount > 1 {
@@ -295,7 +304,7 @@ func (c *coster) computeScanCost(scan *memo.ScanExpr, required *physical.Require
 	if scan.Constraint == nil || scan.Constraint.IsUnconstrained() {
 		preferConstrainedScanCost = cpuCostFactor
 	}
-	return memo.Cost(rowCount)*(seqIOCostFactor+perRowCost) + preferConstrainedScanCost
+	return memo.Cost(rowCount)*(seqIOCostFactor+perRowCost) + preferConstrainedScanCost + additionalCost
 }
 
 func (c *coster) computeVirtualScanCost(scan *memo.VirtualScanExpr) memo.Cost {
@@ -391,7 +400,53 @@ func (c *coster) computeIndexJoinCost(join *memo.IndexJoinExpr) memo.Cost {
 	// counts as random I/O.
 	perRowCost := cpuCostFactor + randIOCostFactor +
 		c.rowScanCost(join.Table, cat.PrimaryIndex, join.Cols.Len())
-	return memo.Cost(leftRowCount) * perRowCost
+	var scanCS, pkCS *constraint.Constraint
+	nodeID := c.nodeID
+	if scan, ok := join.Input.(*memo.ScanExpr); ok {
+		scanCS = scan.Constraint
+		d := c.mem.Metadata().Table(join.Table).Index(scan.Index).Partitioning()
+		// TODO(rytaft): replace this with the distribution physical property which
+		// will be updated already in the scan.
+		nodes := c.nodesFromConstrainedDistribution(d, scan.Constraint)
+		if len(nodes) == 1 {
+			nodeID = nodes[0]
+		}
+	}
+	if scanCS != nil {
+		// TODO(rytaft): replace all of this with a histogram.
+		exactPrefix := scanCS.ExactPrefix(c.evalCtx)
+		table := c.mem.Metadata().Table(join.Table)
+		var from, to tree.Datums
+		var cols []opt.OrderingColumn
+		for i := 0; i < table.ColumnCount(); i++ {
+			found := false
+			for j := 0; j < exactPrefix; j++ {
+				if scanCS.Columns.Get(j).ID() == join.Table.ColumnID(i) {
+					from = append(from, scanCS.Spans.Get(0).StartKey().Value(j))
+					to = append(to, scanCS.Spans.Get(0).EndKey().Value(j))
+					cols = append(cols, opt.OrderingColumn(join.Table.ColumnID(i)))
+					found = true
+					break
+				}
+			}
+			if !found {
+				break
+			}
+		}
+		if len(from) > 0 || len(to) > 0 {
+			var columns constraint.Columns
+			columns.Init(cols)
+			keyCtx := constraint.MakeKeyContext(&columns, c.evalCtx)
+			var pkSpan constraint.Span
+			pkSpan.Init(constraint.MakeCompositeKey(from...), constraint.IncludeBoundary,
+				constraint.MakeCompositeKey(to...), constraint.IncludeBoundary)
+			var pkCSImpl constraint.Constraint
+			pkCSImpl.InitSingleSpan(&keyCtx, &pkSpan)
+			pkCS = &pkCSImpl
+		}
+	}
+	additionalCost := c.additionalScanCost(join.Table, cat.PrimaryIndex, pkCS, nodeID)
+	return memo.Cost(leftRowCount)*perRowCost + additionalCost
 }
 
 func (c *coster) computeLookupJoinCost(join *memo.LookupJoinExpr) memo.Cost {
@@ -610,6 +665,28 @@ func (c *coster) rowScanCost(tabID opt.TableID, idxOrd int, numScannedCols int) 
 	return memo.Cost(numCols+numScannedCols) * costFactor
 }
 
+func (c *coster) additionalScanCost(
+	tabID opt.TableID, idxOrd int, cs *constraint.Constraint, nodeID roachpb.NodeID,
+) memo.Cost {
+	md := c.mem.Metadata()
+	tab := md.Table(tabID)
+	idx := tab.Index(idxOrd)
+
+	var additionalCost memo.Cost
+	if c.nodeID != 0 {
+		adjustment := 1.0 - c.nodeMatchScore(idx.Partitioning(), nodeID, cs)
+		// TODO(rytaft) make this less arbitrary.
+		additionalCost += 10 * randIOCostFactor * memo.Cost(adjustment)
+	}
+	fmt.Printf("additional cost:%f\n", additionalCost)
+
+	// The number of the columns in the index matter because more columns means
+	// more data to scan. The number of columns we actually return also matters
+	// because that is the amount of data that we could potentially transfer over
+	// the network.
+	return additionalCost
+}
+
 // localityMatchScore returns a number from 0.0 to 1.0 that describes how well
 // the current node's locality matches the given zone constraints and
 // leaseholder preferences, with 0.0 indicating 0% and 1.0 indicating 100%. This
@@ -760,4 +837,88 @@ func localityMatchScore(zone cat.Zone, locality roachpb.Locality) float64 {
 
 	// Weight the constraintScore twice as much as the lease score.
 	return (constraintScore*2 + leaseScore) / 3
+}
+
+func (c *coster) nodeMatchScore(
+	distribution cat.Partitioning, nodeID roachpb.NodeID, cs *constraint.Constraint,
+) float64 {
+	nodes := c.nodesFromConstrainedDistribution(distribution, cs)
+
+	if len(nodes) == 1 && nodes[0] == nodeID {
+		return 1
+	}
+
+	return 0
+}
+
+func (c *coster) nodesFromConstrainedDistribution(
+	distribution cat.Partitioning, cs *constraint.Constraint,
+) []roachpb.NodeID {
+	nodes := make([]roachpb.NodeID, 0, len(distribution.Ranges))
+	if cs != nil {
+		keyCtx := constraint.MakeKeyContext(&cs.Columns, c.evalCtx)
+		for _, r := range distribution.Ranges {
+			var rangeSpan constraint.Span
+			end := constraint.ExcludeBoundary
+			if r.To.Len() == 0 {
+				end = constraint.IncludeBoundary
+			}
+			rangeSpan.Init(constraint.MakeCompositeKey(r.From...), constraint.IncludeBoundary,
+				constraint.MakeCompositeKey(r.To...), end)
+			var rangeCs constraint.Constraint
+			rangeCs.InitSingleSpan(&keyCtx, &rangeSpan)
+			rangeCs.IntersectWith(c.evalCtx, cs)
+			if !rangeCs.IsContradiction() {
+				nodes = append(nodes, r.NodeID)
+			}
+		}
+	} else {
+		for _, r := range distribution.Ranges {
+			nodes = append(nodes, r.NodeID)
+		}
+	}
+
+	return nodes
+}
+
+func (c *coster) zoneMatchScore(
+	distribution cat.Partitioning, zone cat.Zone, cs *constraint.Constraint,
+) float64 {
+	zones := c.zonesFromConstrainedDistribution(distribution, cs)
+
+	if len(zones) == 1 && zones[0]. {
+		return 1
+	}
+
+	return 0
+}
+
+func (c *coster) zonesFromConstrainedDistribution(
+	distribution cat.Partitioning, cs *constraint.Constraint,
+) []cat.Zone {
+	zones := make([]cat.Zone, 0, len(distribution.Ranges))
+	if cs != nil {
+		keyCtx := constraint.MakeKeyContext(&cs.Columns, c.evalCtx)
+		for _, r := range distribution.Ranges {
+			var rangeSpan constraint.Span
+			end := constraint.ExcludeBoundary
+			if r.To.Len() == 0 {
+				end = constraint.IncludeBoundary
+			}
+			rangeSpan.Init(constraint.MakeCompositeKey(r.From...), constraint.IncludeBoundary,
+				constraint.MakeCompositeKey(r.To...), end)
+			var rangeCs constraint.Constraint
+			rangeCs.InitSingleSpan(&keyCtx, &rangeSpan)
+			rangeCs.IntersectWith(c.evalCtx, cs)
+			if !rangeCs.IsContradiction() {
+				zones = append(zones, r.Zone)
+			}
+		}
+	} else {
+		for _, r := range distribution.Ranges {
+			zones = append(zones, r.Zone)
+		}
+	}
+
+	return zones
 }

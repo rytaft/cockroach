@@ -52,6 +52,8 @@ type Required struct {
 	// float64 representation, and can be converted to an integer number of rows
 	// using math.Ceil.
 	LimitHint float64
+
+	Distribution Partitioning
 }
 
 // MinRequired are the default physical properties that require nothing and

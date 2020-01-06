@@ -157,6 +157,8 @@ type Flags struct {
 	//
 	Locality roachpb.Locality
 
+	NodeID roachpb.NodeID
+
 	// Database specifies the current database to use for the query. This field
 	// is only used by the save-tables command when rewriteActualFlag=true.
 	Database string
@@ -339,6 +341,7 @@ func (ot *OptTester) RunCommand(tb testing.TB, d *datadriven.TestData) string {
 	ot.Flags.Verbose = testing.Verbose()
 	ot.evalCtx.TestingKnobs.OptimizerCostPerturbation = ot.Flags.PerturbCost
 	ot.evalCtx.Locality = ot.Flags.Locality
+	ot.evalCtx.NodeID = ot.Flags.NodeID
 	ot.evalCtx.SessionData.SaveTablesPrefix = ot.Flags.SaveTablesPrefix
 
 	switch d.Cmd {
@@ -393,7 +396,9 @@ func (ot *OptTester) RunCommand(tb testing.TB, d *datadriven.TestData) string {
 			d.Fatalf(tb, "%+v", err)
 		}
 		ot.postProcess(tb, d, e)
-		return memo.FormatExpr(e, ot.Flags.ExprFormat, ot.catalog)
+		out := memo.FormatExpr(e, ot.Flags.ExprFormat, ot.catalog)
+		fmt.Printf("%s\n", out)
+		return out
 
 	case "optsteps":
 		result, err := ot.OptSteps()
@@ -457,6 +462,13 @@ func (ot *OptTester) RunCommand(tb testing.TB, d *datadriven.TestData) string {
 	case "import":
 		ot.Import(tb)
 		return ""
+
+	case "node-info":
+		result, err := ot.NodeInfo(d.Input)
+		if err != nil {
+			d.Fatalf(tb, "%+v", err)
+		}
+		return result
 
 	default:
 		d.Fatalf(tb, "unsupported command: %s", d.Cmd)
@@ -646,6 +658,16 @@ func (f *Flags) Set(arg datadriven.CmdArg) error {
 		if err != nil {
 			return err
 		}
+
+	case "node":
+		if len(arg.Vals) != 1 {
+			return fmt.Errorf("node requires one argument")
+		}
+		nodeID, err := strconv.ParseInt(arg.Vals[0], 10, 32)
+		if err != nil {
+			return errors.Wrap(err, "node")
+		}
+		f.NodeID = roachpb.NodeID(nodeID)
 
 	case "database":
 		if len(arg.Vals) != 1 {
@@ -1117,6 +1139,15 @@ func (ot *OptTester) SaveTables() (opt.Expr, error) {
 	}
 
 	return expr, nil
+}
+
+func (ot *OptTester) NodeInfo(input string) (string, error) {
+	catalog, ok := ot.catalog.(*testcat.Catalog)
+	if !ok {
+		return "", fmt.Errorf("node-info can only be used with TestCatalog")
+	}
+
+	return catalog.SetNodeInfo(input)
 }
 
 // saveActualTables executes the given query against a running database and

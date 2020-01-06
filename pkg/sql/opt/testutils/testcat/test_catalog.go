@@ -12,12 +12,14 @@ package testcat
 
 import (
 	"context"
+	gojson "encoding/json"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/cockroachdb/cockroach/pkg/config"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
+	"github.com/cockroachdb/cockroach/pkg/server/status/statuspb"
 	"github.com/cockroachdb/cockroach/pkg/settings/cluster"
 	"github.com/cockroachdb/cockroach/pkg/sql/opt/cat"
 	"github.com/cockroachdb/cockroach/pkg/sql/parser"
@@ -38,8 +40,10 @@ const (
 
 // Catalog implements the cat.Catalog interface for testing purposes.
 type Catalog struct {
-	testSchema Schema
-	counter    int
+	testSchema       Schema
+	counter          int
+	nodeIDToLocality map[roachpb.NodeID]roachpb.Locality
+	nodeIDToActivity map[roachpb.NodeID]map[roachpb.NodeID]statuspb.NodeStatus_NetworkActivity
 }
 
 type dataSource interface {
@@ -62,6 +66,8 @@ func New() *Catalog {
 			},
 			dataSources: make(map[string]dataSource),
 		},
+		nodeIDToLocality: make(map[roachpb.NodeID]roachpb.Locality),
+		nodeIDToActivity: make(map[roachpb.NodeID]map[roachpb.NodeID]statuspb.NodeStatus_NetworkActivity),
 	}
 }
 
@@ -214,6 +220,38 @@ func (tc *Catalog) FullyQualifiedName(
 	return ds.(dataSource).fqName(), nil
 }
 
+func (tc *Catalog) GetNodeLocality() map[roachpb.NodeID]roachpb.Locality {
+	return tc.nodeIDToLocality
+}
+
+func (tc *Catalog) GetNodeActivity() map[roachpb.NodeID]map[roachpb.NodeID]statuspb.NodeStatus_NetworkActivity {
+	return tc.nodeIDToActivity
+}
+
+func (tc *Catalog) SetNodeInfo(input string) (string, error) {
+	var nodeInfos []NodeInfo
+	if err := gojson.Unmarshal([]byte(input), &nodeInfos); err != nil {
+		return "", err
+	}
+
+	for _, info := range nodeInfos {
+		nodeID := roachpb.NodeID(info.NodeID)
+		var locality roachpb.Locality
+		locality.Set(info.Locality)
+		tc.nodeIDToLocality[nodeID] = locality
+		tc.nodeIDToActivity[nodeID] = make(map[roachpb.NodeID]statuspb.NodeStatus_NetworkActivity)
+		for _, activity := range info.Activity {
+			tc.nodeIDToActivity[nodeID][roachpb.NodeID(activity.NodeID)] = statuspb.NodeStatus_NetworkActivity{
+				Incoming: activity.Incoming,
+				Outgoing: activity.Outgoing,
+				Latency:  activity.Latency,
+			}
+		}
+	}
+
+	return fmt.Sprintf("%v\n%v", tc.nodeIDToLocality, tc.nodeIDToActivity), nil
+}
+
 func (tc *Catalog) resolveSchema(toResolve *cat.SchemaName) (cat.Schema, cat.SchemaName, error) {
 	if string(toResolve.CatalogName) != testDB {
 		return nil, cat.SchemaName{}, pgerror.Newf(pgcode.InvalidSchemaName,
@@ -255,6 +293,18 @@ func (tc *Catalog) Table(name *tree.TableName) *Table {
 	}
 	panic(pgerror.Newf(pgcode.WrongObjectType,
 		"\"%q\" is not a table", tree.ErrString(name)))
+}
+
+// Index returns the test index that was previously added with the given name
+// on the given table.
+func (tc *Catalog) Index(tab *Table, index string) *Index {
+	for i, idx := range tab.Indexes {
+		if idx.IdxName == index {
+			return tab.Indexes[i]
+		}
+	}
+	panic(pgerror.Newf(pgcode.UndefinedObject,
+		"index \"%q\" does not exist", index))
 }
 
 // AddTable adds the given test table to the catalog.
@@ -727,6 +777,9 @@ type Index struct {
 	// the parent table, database, or even the default zone.
 	IdxZone *config.ZoneConfig
 
+	// PartZones maps partitions to zones.
+	PartZones map[string]*config.ZoneConfig
+
 	// Ordinal is the ordinal of this index in the table.
 	ordinal int
 
@@ -856,6 +909,156 @@ func (ti *Index) PartitionByListPrefixes() []tree.Datums {
 		}
 	}
 	return res
+}
+
+func (ti *Index) Partitioning() cat.Partitioning {
+	fmt.Printf("Partitioning\n")
+	p := ti.partitionBy
+	if p == nil {
+		return cat.Partitioning{}
+	}
+	if len(p.Range) == 0 {
+		return cat.Partitioning{}
+	}
+	var ranges []cat.Range
+	semaCtx := tree.MakeSemaContext()
+	evalCtx := tree.MakeTestingEvalContext(cluster.MakeTestingClusterSettings())
+	for i := range p.Fields {
+		if i >= len(ti.Columns) || p.Fields[i] != ti.Columns[i].ColName() {
+			panic("partition by columns must be a prefix of the index columns")
+		}
+	}
+	fmt.Printf("ranges:%d\n", len(p.Range))
+
+	for i := range p.Range {
+		var from, to tree.Datums
+		for _, e := range p.Range[i].From {
+			var vals []tree.Expr
+			switch t := e.(type) {
+			case *tree.Tuple:
+				vals = t.Exprs
+			default:
+				vals = []tree.Expr{e}
+			}
+
+			// Cut off at MINVALUE or MAXVALUE, if present.
+			for i := range vals {
+				if t, ok := vals[i].(*tree.UnresolvedName); ok && t.NumParts == 1 {
+					switch t.Parts[0] {
+					case "minvalue", "maxvalue":
+						vals = vals[:i]
+					}
+				}
+			}
+			if len(vals) == 0 {
+				continue
+			}
+			from = make(tree.Datums, len(vals))
+			for i := range vals {
+				c := tree.CastExpr{Expr: vals[i], Type: ti.Columns[i].DatumType()}
+				cTyped, err := c.TypeCheck(&semaCtx, nil)
+				if err != nil {
+					panic(err)
+				}
+				from[i], err = cTyped.Eval(&evalCtx)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+		for _, e := range p.Range[i].To {
+			var vals []tree.Expr
+			switch t := e.(type) {
+			case *tree.Tuple:
+				vals = t.Exprs
+			default:
+				vals = []tree.Expr{e}
+			}
+
+			// Cut off at MINVALUE or MAXVALUE, if present.
+			for i := range vals {
+				if t, ok := vals[i].(*tree.UnresolvedName); ok && t.NumParts == 1 {
+					switch t.Parts[0] {
+					case "minvalue", "maxvalue":
+						vals = vals[:i]
+					}
+				}
+			}
+			if len(vals) == 0 {
+				continue
+			}
+			to = make(tree.Datums, len(vals))
+			for i := range vals {
+				c := tree.CastExpr{Expr: vals[i], Type: ti.Columns[i].DatumType()}
+				cTyped, err := c.TypeCheck(&semaCtx, nil)
+				if err != nil {
+					panic(err)
+				}
+				to[i], err = cTyped.Eval(&evalCtx)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+		fmt.Printf("from:%d, to:%d\n", len(from), len(to))
+
+		nodeID := ti.nodeFromPartition(string(p.Range[i].Name))
+		ranges = append(ranges, cat.Range{NodeID: nodeID, From: from, To: to,
+			Zone: ti.PartZones[string(p.Range[i].Name)]})
+	}
+	return cat.Partitioning{Ranges: ranges}
+}
+
+func (ti *Index) nodeFromPartition(part string) roachpb.NodeID {
+	if ti.PartZones == nil {
+		return 0
+	}
+	nodeIDToLocality := ti.Table().(*Table).Catalog.(*Catalog).nodeIDToLocality
+	if zone, ok := ti.PartZones[part]; ok {
+		for nodeID, locality := range nodeIDToLocality {
+			if localitySatisfiesConstraints(locality, zone.Constraints) {
+				return nodeID
+			}
+		}
+	}
+	return 0
+}
+
+func localitySatisfiesConstraints(
+	locality roachpb.Locality, constraints []config.Constraints,
+) bool {
+	for i := range constraints {
+		for j := range constraints[i].Constraints {
+			if !localitySatisfiesConstraint(locality, constraints[i].Constraints[j]) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// localitySatisfiesConstraint checks whether a locality satisfies the given constraint.
+// If the constraint is of the PROHIBITED type, satisfying it means the locality
+// should not match the constraint's spec.
+func localitySatisfiesConstraint(locality roachpb.Locality, constraint config.Constraint) bool {
+	hasConstraint := localityMatchesConstraint(locality, constraint)
+	if (constraint.Type == config.Constraint_REQUIRED && !hasConstraint) ||
+		(constraint.Type == config.Constraint_PROHIBITED && hasConstraint) {
+		return false
+	}
+	return true
+}
+
+// localityMatchesConstraint returns whether a locality matches a constraint's
+// spec. It notably ignores whether the constraint is required, prohibited,
+// positive, or otherwise. Also see localitySatisfiesConstraint().
+func localityMatchesConstraint(locality roachpb.Locality, c config.Constraint) bool {
+	for _, tier := range locality.Tiers {
+		if c.Key == tier.Key && c.Value == tier.Value {
+			return true
+		}
+	}
+	return false
 }
 
 // Column implements the cat.Column interface for testing purposes.
