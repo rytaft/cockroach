@@ -1,0 +1,58 @@
+[WARN]  Running against a source checkout. In order to get our runtime dependencies we'll have to invoke Maven. Depending on the state of your system, this may take ~30-45 seconds
+[DEBUG]  Running 'mvn -pl site.ycsb:cloudspanner-binding -am package -DskipTests dependency:build-classpath -DincludeScope=compile -Dmdep.outputFilterFile=true'
+java -cp /home/ubuntu/YCSB/cloudspanner/conf:/home/ubuntu/YCSB/cloudspanner/target/cloudspanner-binding-0.18.0-SNAPSHOT.jar:/home/ubuntu/.m2/repository/org/threeten/threetenbp/1.3.3/threetenbp-1.3.3.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-core/1.9.0/grpc-core-1.9.0.jar:/home/ubuntu/.m2/repository/org/hdrhistogram/HdrHistogram/2.1.4/HdrHistogram-2.1.4.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/grpc-google-cloud-spanner-admin-database-v1/0.2.1/grpc-google-cloud-spanner-admin-database-v1-0.2.1.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-netty-shaded/1.9.0/grpc-netty-shaded-1.9.0.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-auth/1.9.0/grpc-auth-1.9.0.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-protobuf/1.9.0/grpc-protobuf-1.9.0.jar:/home/ubuntu/.m2/repository/com/google/http-client/google-http-client-jackson2/1.19.0/google-http-client-jackson2-1.19.0.jar:/home/ubuntu/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.1.3/jackson-core-2.1.3.jar:/home/ubuntu/.m2/repository/io/opencensus/opencensus-contrib-grpc-metrics/0.10.0/opencensus-contrib-grpc-metrics-0.10.0.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/grpc-google-cloud-spanner-v1/0.2.1/grpc-google-cloud-spanner-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/protobuf/protobuf-java-util/3.5.1/protobuf-java-util-3.5.1.jar:/home/ubuntu/.m2/repository/joda-time/joda-time/2.9.2/joda-time-2.9.2.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-iam-v1/0.2.1/proto-google-iam-v1-0.2.1.jar:/home/ubuntu/.m2/repository/org/apache/htrace/htrace-core4/4.1.0-incubating/htrace-core4-4.1.0-incubating.jar:/home/ubuntu/.m2/repository/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar:/home/ubuntu/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/home/ubuntu/.m2/repository/com/google/api/api-common/1.3.0/api-common-1.3.0.jar:/home/ubuntu/.m2/repository/com/google/code/findbugs/jsr305/3.0.1/jsr305-3.0.1.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-cloud-spanner-admin-database-v1/0.2.1/proto-google-cloud-spanner-admin-database-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/guava/guava/20.0/guava-20.0.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-cloud-spanner-v1/0.2.1/proto-google-cloud-spanner-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/http-client/google-http-client/1.23.0/google-http-client-1.23.0.jar:/home/ubuntu/.m2/repository/com/google/api/gax/1.19.0/gax-1.19.0.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-stub/1.9.0/grpc-stub-1.9.0.jar:/home/ubuntu/.m2/repository/org/apache/httpcomponents/httpclient/4.0.1/httpclient-4.0.1.jar:/home/ubuntu/.m2/repository/com/google/auth/google-auth-library-credentials/0.9.0/google-auth-library-credentials-0.9.0.jar:/home/ubuntu/.m2/repository/com/google/errorprone/error_prone_annotations/2.2.0/error_prone_annotations-2.2.0.jar:/home/ubuntu/.m2/repository/com/google/protobuf/protobuf-java/3.5.1/protobuf-java-3.5.1.jar:/home/ubuntu/.m2/repository/com/google/api/gax-grpc/1.19.0/gax-grpc-1.19.0.jar:/home/ubuntu/.m2/repository/commons-codec/commons-codec/1.3/commons-codec-1.3.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/grpc-google-common-protos/1.1.1/grpc-google-common-protos-1.1.1.jar:/home/ubuntu/.m2/repository/org/codehaus/jackson/jackson-core-asl/1.9.4/jackson-core-asl-1.9.4.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-common-protos/1.1.1/proto-google-common-protos-1.1.1.jar:/home/ubuntu/YCSB/core/target/core-0.18.0-SNAPSHOT.jar:/home/ubuntu/.m2/repository/com/google/instrumentation/instrumentation-api/0.4.3/instrumentation-api-0.4.3.jar:/home/ubuntu/.m2/repository/org/codehaus/jackson/jackson-mapper-asl/1.9.4/jackson-mapper-asl-1.9.4.jar:/home/ubuntu/.m2/repository/com/google/cloud/google-cloud-spanner/0.36.0-beta/google-cloud-spanner-0.36.0-beta.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-cloud-spanner-admin-instance-v1/0.2.1/proto-google-cloud-spanner-admin-instance-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/code/gson/gson/2.7/gson-2.7.jar:/home/ubuntu/.m2/repository/io/opencensus/opencensus-contrib-grpc-util/0.11.1/opencensus-contrib-grpc-util-0.11.1.jar:/home/ubuntu/.m2/repository/junit/junit/4.12/junit-4.12.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-context/1.9.0/grpc-context-1.9.0.jar:/home/ubuntu/.m2/repository/com/google/cloud/google-cloud-core-grpc/1.18.0/google-cloud-core-grpc-1.18.0.jar:/home/ubuntu/.m2/repository/io/opencensus/opencensus-api/0.11.1/opencensus-api-0.11.1.jar:/home/ubuntu/.m2/repository/org/apache/httpcomponents/httpcore/4.0.1/httpcore-4.0.1.jar:/home/ubuntu/.m2/repository/com/google/cloud/google-cloud-core/1.18.0/google-cloud-core-1.18.0.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-protobuf-lite/1.9.0/grpc-protobuf-lite-1.9.0.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/grpc-google-cloud-spanner-admin-instance-v1/0.2.1/grpc-google-cloud-spanner-admin-instance-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/auth/google-auth-library-oauth2-http/0.9.0/google-auth-library-oauth2-http-0.9.0.jar site.ycsb.Client -db site.ycsb.db.cloudspanner.CloudSpannerClient -P cloudspanner/conf/cloudspanner.properties -P workloads/workloada -p recordcount=10000000 -p operationcount=10000 -threads 1 -s -t
+Command line: -db site.ycsb.db.cloudspanner.CloudSpannerClient -P cloudspanner/conf/cloudspanner.properties -P workloads/workloada -p recordcount=10000000 -p operationcount=10000 -threads 1 -s -t
+YCSB Client 0.18.0-SNAPSHOT
+
+Loading workload...
+Starting test.
+2020-02-15 00:15:06:165 0 sec: 0 operations; est completion in 0 second 
+Feb 15, 2020 12:15:06 AM site.ycsb.db.cloudspanner.CloudSpannerClient init
+INFO: 
+Host: https://spanner.googleapis.com
+Project: cockroach-ephemeral
+Instance: andrei-test
+Database: ycsb
+Using queries for reads: true
+Batching inserts: 1
+Bounded staleness seconds: 0
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+2020-02-15 00:15:16:147 10 sec: 933 operations; 93.3 current ops/sec; est completion in 1 minute [READ: Count=471, Max=996863, Min=4932, Avg=10660.47, 90=10775, 99=14671, 99.9=996863, 99.99=996863] [UPDATE: Count=462, Max=34271, Min=6288, Avg=8837.97, 90=10551, 99=13975, 99.9=34271, 99.99=34271] 
+2020-02-15 00:15:26:146 20 sec: 2206 operations; 127.3 current ops/sec; est completion in 1 minute [READ: Count=632, Max=13015, Min=4488, Avg=7628.31, 90=9431, 99=11703, 99.9=12439, 99.99=13015] [UPDATE: Count=642, Max=14151, Min=6052, Avg=8050.49, 90=9399, 99=11335, 99.9=12311, 99.99=14151] 
+2020-02-15 00:15:36:146 30 sec: 3649 operations; 144.3 current ops/sec; est completion in 53 seconds [READ: Count=725, Max=13719, Min=4140, Avg=6755.1, 90=8807, 99=11223, 99.9=12127, 99.99=13719] [UPDATE: Count=717, Max=16327, Min=5440, Avg=7078.24, 90=8695, 99=11007, 99.9=14743, 99.99=16327] 
+2020-02-15 00:15:46:147 40 sec: 5037 operations; 138.8 current ops/sec; est completion in 40 seconds [READ: Count=699, Max=35263, Min=4156, Avg=6943.52, 90=8943, 99=11471, 99.9=15119, 99.99=35263] [UPDATE: Count=690, Max=12591, Min=5488, Avg=7435.08, 90=8895, 99=11071, 99.9=11911, 99.99=12591] 
+2020-02-15 00:15:56:146 50 sec: 6660 operations; 162.3 current ops/sec; est completion in 26 seconds [READ: Count=838, Max=12991, Min=3418, Avg=5860.51, 90=6919, 99=7851, 99.9=9615, 99.99=12991] [UPDATE: Count=784, Max=18783, Min=5440, Avg=6458.53, 90=6871, 99=7359, 99.9=8471, 99.99=18783] 
+2020-02-15 00:16:06:146 60 sec: 8304 operations; 164.4 current ops/sec; est completion in 13 seconds [READ: Count=827, Max=9711, Min=3790, Avg=5811.42, 90=6895, 99=7639, 99.9=8767, 99.99=9711] [UPDATE: Count=817, Max=11727, Min=5256, Avg=6343.96, 90=6819, 99=7439, 99.9=7959, 99.99=11727] 
+2020-02-15 00:16:16:146 70 sec: 9914 operations; 161 current ops/sec; est completion in 1 second [READ: Count=806, Max=10343, Min=3994, Avg=5960.18, 90=7163, 99=9463, 99.9=10007, 99.99=10343] [UPDATE: Count=804, Max=10135, Min=5356, Avg=6447.08, 90=7023, 99=7843, 99.9=9871, 99.99=10135] 
+2020-02-15 00:16:16:714 70 sec: 10000 operations; 151.41 current ops/sec; [READ: Count=48, Max=8231, Min=4472, Avg=6226.54, 90=7091, 99=8231, 99.9=8231, 99.99=8231] [CLEANUP: Count=1, Max=18, Min=18, Avg=18, 90=18, 99=18, 99.9=18, 99.99=18] [UPDATE: Count=38, Max=7951, Min=6412, Avg=7096.11, 90=7491, 99=7951, 99.9=7951, 99.99=7951] 
+[OVERALL], RunTime(ms), 70568
+[OVERALL], Throughput(ops/sec), 141.7072894229679
+[TOTAL_GCS_PS_Scavenge], Count, 2
+[TOTAL_GC_TIME_PS_Scavenge], Time(ms), 20
+[TOTAL_GC_TIME_%_PS_Scavenge], Time(%), 0.028341457884593583
+[TOTAL_GCS_PS_MarkSweep], Count, 1
+[TOTAL_GC_TIME_PS_MarkSweep], Time(ms), 23
+[TOTAL_GC_TIME_%_PS_MarkSweep], Time(%), 0.032592676567282625
+[TOTAL_GCs], Count, 3
+[TOTAL_GC_TIME], Time(ms), 43
+[TOTAL_GC_TIME_%], Time(%), 0.060934134451876204
+[READ], Operations, 5046
+[READ], AverageLatency(us), 6819.87138327388
+[READ], MinLatency(us), 3418
+[READ], MaxLatency(us), 996863
+[READ], 95thPercentileLatency(us), 9615
+[READ], 99thPercentileLatency(us), 11415
+[READ], Return=OK, 5046
+[CLEANUP], Operations, 1
+[CLEANUP], AverageLatency(us), 18.0
+[CLEANUP], MinLatency(us), 18
+[CLEANUP], MaxLatency(us), 18
+[CLEANUP], 95thPercentileLatency(us), 18
+[CLEANUP], 99thPercentileLatency(us), 18
+[UPDATE], Operations, 4954
+[UPDATE], AverageLatency(us), 7096.58215583367
+[UPDATE], MinLatency(us), 5256
+[UPDATE], MaxLatency(us), 34271
+[UPDATE], 95thPercentileLatency(us), 9519
+[UPDATE], 99thPercentileLatency(us), 11183
+[UPDATE], Return=OK, 4954

@@ -78,6 +78,8 @@ type tpcc struct {
 
 	expensiveChecks bool
 
+	remoteWarehouseFraction int
+
 	randomCIDsCache struct {
 		syncutil.Mutex
 		values [][]int
@@ -144,21 +146,22 @@ var tpccMeta = workload.Meta{
 		g := &tpcc{}
 		g.flags.FlagSet = pflag.NewFlagSet(`tpcc`, pflag.ContinueOnError)
 		g.flags.Meta = map[string]workload.FlagMeta{
-			`db`:                 {RuntimeOnly: true},
-			`mix`:                {RuntimeOnly: true},
-			`partitions`:         {RuntimeOnly: true},
-			`client-partitions`:  {RuntimeOnly: true},
-			`partition-affinity`: {RuntimeOnly: true},
-			`partition-strategy`: {RuntimeOnly: true},
-			`zones`:              {RuntimeOnly: true},
-			`active-warehouses`:  {RuntimeOnly: true},
-			`scatter`:            {RuntimeOnly: true},
-			`serializable`:       {RuntimeOnly: true},
-			`split`:              {RuntimeOnly: true},
-			`wait`:               {RuntimeOnly: true},
-			`workers`:            {RuntimeOnly: true},
-			`conns`:              {RuntimeOnly: true},
-			`expensive-checks`:   {RuntimeOnly: true, CheckConsistencyOnly: true},
+			`db`:                        {RuntimeOnly: true},
+			`mix`:                       {RuntimeOnly: true},
+			`partitions`:                {RuntimeOnly: true},
+			`client-partitions`:         {RuntimeOnly: true},
+			`partition-affinity`:        {RuntimeOnly: true},
+			`partition-strategy`:        {RuntimeOnly: true},
+			`zones`:                     {RuntimeOnly: true},
+			`active-warehouses`:         {RuntimeOnly: true},
+			`scatter`:                   {RuntimeOnly: true},
+			`serializable`:              {RuntimeOnly: true},
+			`split`:                     {RuntimeOnly: true},
+			`wait`:                      {RuntimeOnly: true},
+			`workers`:                   {RuntimeOnly: true},
+			`conns`:                     {RuntimeOnly: true},
+			`expensive-checks`:          {RuntimeOnly: true, CheckConsistencyOnly: true},
+			`remote-warehouse-fraction`: {RuntimeOnly: true},
 		}
 
 		g.flags.Uint64Var(&g.seed, `seed`, 1, `Random number generator seed`)
@@ -190,6 +193,7 @@ var tpccMeta = workload.Meta{
 		g.flags.BoolVar(&g.serializable, `serializable`, false, `Force serializable mode`)
 		g.flags.BoolVar(&g.split, `split`, false, `Split tables`)
 		g.flags.BoolVar(&g.expensiveChecks, `expensive-checks`, false, `Run expensive checks`)
+		g.flags.IntVar(&g.remoteWarehouseFraction, `remote-warehouse-fraction`, 100, `Denominator of the fraction of remote warehouses`)
 		g.connFlags = workload.NewConnFlags(&g.flags)
 
 		// Hardcode this since it doesn't seem like anyone will want to change

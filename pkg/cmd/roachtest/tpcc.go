@@ -69,18 +69,18 @@ func tpccFixturesCmd(t *test, cloud string, warehouses int, extraArgs string) st
 		// TODO(nvanbenschoten): We could switch to import for both clouds.
 		// At the moment, import is still a little unstable and load is still
 		// marginally faster.
-		command = "./workload fixtures load"
-		fixtureWarehouses := -1
-		for _, w := range []int{1, 10, 100, 1000, 2000, 5000, 10000} {
-			if w >= warehouses {
-				fixtureWarehouses = w
-				break
-			}
-		}
-		if fixtureWarehouses == -1 {
-			t.Fatalf("could not find fixture big enough for %d warehouses", warehouses)
-		}
-		warehouses = fixtureWarehouses
+		command = "./cockroach workload fixtures import"
+		//fixtureWarehouses := -1
+		//for _, w := range []int{1, 10, 100, 1000, 2000, 5000, 10000} {
+		//	if w >= warehouses {
+		//		fixtureWarehouses = w
+		//		break
+		//	}
+		//}
+		//if fixtureWarehouses == -1 {
+		//	t.Fatalf("could not find fixture big enough for %d warehouses", warehouses)
+		//}
+		//warehouses = fixtureWarehouses
 	case "aws":
 		// For fixtures import, use the version built into the cockroach binary
 		// so the tpcc workload-versions match on release branches.
@@ -509,6 +509,8 @@ type tpccBenchSpec struct {
 	MinVersion string
 	// Tags to pass to testRegistry.Add.
 	Tags []string
+
+	RemoteWarehouseFraction int
 }
 
 // partitions returns the number of partitions specified to the load generator.
@@ -539,6 +541,9 @@ func registerTPCCBenchSpec(r *testRegistry, b tpccBenchSpec) {
 		"tpccbench",
 		fmt.Sprintf("nodes=%d", b.Nodes),
 		fmt.Sprintf("cpu=%d", b.CPUs),
+	}
+	if b.RemoteWarehouseFraction != 0 {
+		nameParts = append(nameParts, fmt.Sprintf("remote=%d", b.RemoteWarehouseFraction))
 	}
 	if b.Chaos {
 		nameParts = append(nameParts, "chaos")
@@ -623,6 +628,11 @@ func loadTPCCBench(
 		string(pqErr.Code) != pgcode.InvalidCatalogName {
 		return err
 	}
+	//if _, err := db.Exec(`
+	// ALTER RANGE default CONFIGURE ZONE USING num_replicas = 5;
+	//`); err != nil {
+	//	t.Fatal(err)
+	//}
 
 	// Increase job leniency to prevent restarts due to node liveness.
 	if _, err := db.Exec(`
@@ -705,13 +715,15 @@ func runTPCCBench(ctx context.Context, t *test, c *cluster, b tpccBenchSpec) {
 	loadGroups := makeLoadGroups(c, numZones, b.Nodes, numLoadGroups)
 	roachNodes := loadGroups.roachNodes()
 	loadNodes := loadGroups.loadNodes()
-	c.Put(ctx, cockroach, "./cockroach", roachNodes)
-	// Fixture import needs ./cockroach workload on loadNodes[0],
-	// and if we use haproxy (see below) we need it on the others
-	// as well.
-	c.Put(ctx, cockroach, "./cockroach", loadNodes)
-	c.Put(ctx, workload, "./workload", loadNodes)
-	c.Start(ctx, t, append(b.startOpts(), roachNodes)...)
+	if !c.reusing {
+		c.Put(ctx, cockroach, "./cockroach", roachNodes)
+		// Fixture import needs ./cockroach workload on loadNodes[0],
+		// and if we use haproxy (see below) we need it on the others
+		// as well.
+		c.Put(ctx, cockroach, "./cockroach", loadNodes)
+		c.Put(ctx, workload, "./workload", loadNodes)
+		c.Start(ctx, t, append(b.startOpts(), roachNodes)...)
+	}
 
 	useHAProxy := b.Chaos
 	const restartWait = 15 * time.Second
@@ -822,6 +834,9 @@ func runTPCCBench(ctx context.Context, t *test, c *cluster, b tpccBenchSpec) {
 					"--histograms=%s",
 					b.LoadWarehouses, activeWarehouses, rampDur,
 					loadDur, extraFlags, sqlGateways, histogramsPath)
+				if b.RemoteWarehouseFraction != 0 {
+					cmd += fmt.Sprintf(" --remote-warehouse-fraction=%d", b.RemoteWarehouseFraction)
+				}
 				err := c.RunE(ctx, group.loadNodes, cmd)
 				loadDone <- timeutil.Now()
 				if err != nil {
@@ -875,6 +890,387 @@ func runTPCCBench(ctx context.Context, t *test, c *cluster, b tpccBenchSpec) {
 
 func registerTPCCBench(r *testRegistry) {
 	specs := []tpccBenchSpec{
+		//{
+		//	Nodes:      1,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            350,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes:      1,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            350,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes:      1,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            300,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes:      1,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            300,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		//{
+		//	Nodes:      3,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            350,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes:      3,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            350,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes:      3,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            300,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes:      3,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            300,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		//{
+		//	Nodes:      6,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            700,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes:      6,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            650,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes:      6,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            600,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes:      6,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          1000,
+		//	EstimatedMax:            600,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		//{
+		//	Nodes:      12,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            1600,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes:      12,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            1500,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes:      12,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            1400,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes:      12,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            1100,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		//{
+		//	Nodes:      24,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          5000,
+		//	EstimatedMax:            3000,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes:      24,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          5000,
+		//	EstimatedMax:            2800,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes:      24,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          5000,
+		//	EstimatedMax:            2600,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes:      24,
+		//	CPUs:       4,
+		//	LoadConfig: singlePartitionedLoadgen,
+		//
+		//	LoadWarehouses:          5000,
+		//	EstimatedMax:            2000,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		/*
+			{
+				Nodes:      48,
+				CPUs:       4,
+				LoadConfig: singlePartitionedLoadgen,
+
+				LoadWarehouses:          10000,
+				EstimatedMax:            7000,
+				RemoteWarehouseFraction: 100000000,
+			},
+			{
+				Nodes:      48,
+				CPUs:       4,
+				LoadConfig: singlePartitionedLoadgen,
+
+				LoadWarehouses:          10000,
+				EstimatedMax:            5500,
+				RemoteWarehouseFraction: 100,
+			},
+		*/
+		{
+			Nodes:      48,
+			CPUs:       4,
+			LoadConfig: singlePartitionedLoadgen,
+
+			LoadWarehouses:          10000,
+			EstimatedMax:            4500,
+			RemoteWarehouseFraction: 10,
+		},
+		{
+			Nodes:      48,
+			CPUs:       4,
+			LoadConfig: singlePartitionedLoadgen,
+
+			LoadWarehouses:          10000,
+			EstimatedMax:            4000,
+			RemoteWarehouseFraction: 1,
+		},
+
+		//{
+		//	Nodes: 3,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            700,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes: 3,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            600,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes: 3,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            500,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes: 3,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            400,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		//{
+		//	Nodes: 6,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            1400,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes: 6,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            1150,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes: 6,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            900,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes: 6,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          2000,
+		//	EstimatedMax:            700,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		//{
+		//	Nodes: 12,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          5000,
+		//	EstimatedMax:            2800,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes: 12,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          5000,
+		//	EstimatedMax:            2300,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes: 12,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          5000,
+		//	EstimatedMax:            1800,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes: 12,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          5000,
+		//	EstimatedMax:            1600,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		//{
+		//	Nodes: 24,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          10000,
+		//	EstimatedMax:            5600,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes: 24,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          10000,
+		//	EstimatedMax:            4500,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes: 24,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          10000,
+		//	EstimatedMax:            3500,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes: 24,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          10000,
+		//	EstimatedMax:            3100,
+		//	RemoteWarehouseFraction: 1,
+		//},
+		//{
+		//	Nodes: 48,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          20000,
+		//	EstimatedMax:            11200,
+		//	RemoteWarehouseFraction: 100000000,
+		//},
+		//{
+		//	Nodes: 48,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          20000,
+		//	EstimatedMax:            8500,
+		//	RemoteWarehouseFraction: 100,
+		//},
+		//{
+		//	Nodes: 48,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          20000,
+		//	EstimatedMax:            6500,
+		//	RemoteWarehouseFraction: 10,
+		//},
+		//{
+		//	Nodes: 48,
+		//	CPUs:  4,
+		//
+		//	LoadWarehouses:          20000,
+		//	EstimatedMax:            6100,
+		//	RemoteWarehouseFraction: 1,
+		//},
+
+		// Start of real tests.
 		{
 			Nodes: 3,
 			CPUs:  4,

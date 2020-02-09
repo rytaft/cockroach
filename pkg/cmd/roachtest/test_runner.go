@@ -834,10 +834,12 @@ func (r *testRunner) getWork(
 
 	// Create a cluster, if we no longer have one.
 	if testToRun.canReuseCluster {
-		l.PrintfCtx(ctx, "Using existing cluster: %s. Wiping", c.name)
-		if err := c.WipeE(ctx, l); err != nil {
-			return testToRunRes{}, nil, err
-		}
+		//l.PrintfCtx(ctx, "Using existing cluster: %s. Wiping", c.name)
+		l.PrintfCtx(ctx, "Using existing cluster: %s. Skipping wipe", c.name)
+		c.reusing = true
+		//if err := c.WipeE(ctx, l); err != nil {
+		//	return testToRunRes{}, nil, err
+		//}
 		if err := c.RunL(ctx, l, c.All(), "rm -rf "+perfArtifactsDir); err != nil {
 			return testToRunRes{}, nil, errors.Wrapf(err, "failed to remove perf artifacts dir")
 		}

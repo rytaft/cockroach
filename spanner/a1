@@ -1,0 +1,188 @@
+[WARN]  Running against a source checkout. In order to get our runtime dependencies we'll have to invoke Maven. Depending on the state of your system, this may take ~30-45 seconds
+[DEBUG]  Running 'mvn -pl site.ycsb:cloudspanner-binding -am package -DskipTests dependency:build-classpath -DincludeScope=compile -Dmdep.outputFilterFile=true'
+java -cp /home/ubuntu/YCSB/cloudspanner/conf:/home/ubuntu/YCSB/cloudspanner/target/cloudspanner-binding-0.18.0-SNAPSHOT.jar:/home/ubuntu/.m2/repository/org/threeten/threetenbp/1.3.3/threetenbp-1.3.3.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-core/1.9.0/grpc-core-1.9.0.jar:/home/ubuntu/.m2/repository/org/hdrhistogram/HdrHistogram/2.1.4/HdrHistogram-2.1.4.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/grpc-google-cloud-spanner-admin-database-v1/0.2.1/grpc-google-cloud-spanner-admin-database-v1-0.2.1.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-netty-shaded/1.9.0/grpc-netty-shaded-1.9.0.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-auth/1.9.0/grpc-auth-1.9.0.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-protobuf/1.9.0/grpc-protobuf-1.9.0.jar:/home/ubuntu/.m2/repository/com/google/http-client/google-http-client-jackson2/1.19.0/google-http-client-jackson2-1.19.0.jar:/home/ubuntu/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.1.3/jackson-core-2.1.3.jar:/home/ubuntu/.m2/repository/io/opencensus/opencensus-contrib-grpc-metrics/0.10.0/opencensus-contrib-grpc-metrics-0.10.0.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/grpc-google-cloud-spanner-v1/0.2.1/grpc-google-cloud-spanner-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/protobuf/protobuf-java-util/3.5.1/protobuf-java-util-3.5.1.jar:/home/ubuntu/.m2/repository/joda-time/joda-time/2.9.2/joda-time-2.9.2.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-iam-v1/0.2.1/proto-google-iam-v1-0.2.1.jar:/home/ubuntu/.m2/repository/org/apache/htrace/htrace-core4/4.1.0-incubating/htrace-core4-4.1.0-incubating.jar:/home/ubuntu/.m2/repository/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar:/home/ubuntu/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/home/ubuntu/.m2/repository/com/google/api/api-common/1.3.0/api-common-1.3.0.jar:/home/ubuntu/.m2/repository/com/google/code/findbugs/jsr305/3.0.1/jsr305-3.0.1.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-cloud-spanner-admin-database-v1/0.2.1/proto-google-cloud-spanner-admin-database-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/guava/guava/20.0/guava-20.0.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-cloud-spanner-v1/0.2.1/proto-google-cloud-spanner-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/http-client/google-http-client/1.23.0/google-http-client-1.23.0.jar:/home/ubuntu/.m2/repository/com/google/api/gax/1.19.0/gax-1.19.0.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-stub/1.9.0/grpc-stub-1.9.0.jar:/home/ubuntu/.m2/repository/org/apache/httpcomponents/httpclient/4.0.1/httpclient-4.0.1.jar:/home/ubuntu/.m2/repository/com/google/auth/google-auth-library-credentials/0.9.0/google-auth-library-credentials-0.9.0.jar:/home/ubuntu/.m2/repository/com/google/errorprone/error_prone_annotations/2.2.0/error_prone_annotations-2.2.0.jar:/home/ubuntu/.m2/repository/com/google/protobuf/protobuf-java/3.5.1/protobuf-java-3.5.1.jar:/home/ubuntu/.m2/repository/com/google/api/gax-grpc/1.19.0/gax-grpc-1.19.0.jar:/home/ubuntu/.m2/repository/commons-codec/commons-codec/1.3/commons-codec-1.3.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/grpc-google-common-protos/1.1.1/grpc-google-common-protos-1.1.1.jar:/home/ubuntu/.m2/repository/org/codehaus/jackson/jackson-core-asl/1.9.4/jackson-core-asl-1.9.4.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-common-protos/1.1.1/proto-google-common-protos-1.1.1.jar:/home/ubuntu/YCSB/core/target/core-0.18.0-SNAPSHOT.jar:/home/ubuntu/.m2/repository/com/google/instrumentation/instrumentation-api/0.4.3/instrumentation-api-0.4.3.jar:/home/ubuntu/.m2/repository/org/codehaus/jackson/jackson-mapper-asl/1.9.4/jackson-mapper-asl-1.9.4.jar:/home/ubuntu/.m2/repository/com/google/cloud/google-cloud-spanner/0.36.0-beta/google-cloud-spanner-0.36.0-beta.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/proto-google-cloud-spanner-admin-instance-v1/0.2.1/proto-google-cloud-spanner-admin-instance-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/code/gson/gson/2.7/gson-2.7.jar:/home/ubuntu/.m2/repository/io/opencensus/opencensus-contrib-grpc-util/0.11.1/opencensus-contrib-grpc-util-0.11.1.jar:/home/ubuntu/.m2/repository/junit/junit/4.12/junit-4.12.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-context/1.9.0/grpc-context-1.9.0.jar:/home/ubuntu/.m2/repository/com/google/cloud/google-cloud-core-grpc/1.18.0/google-cloud-core-grpc-1.18.0.jar:/home/ubuntu/.m2/repository/io/opencensus/opencensus-api/0.11.1/opencensus-api-0.11.1.jar:/home/ubuntu/.m2/repository/org/apache/httpcomponents/httpcore/4.0.1/httpcore-4.0.1.jar:/home/ubuntu/.m2/repository/com/google/cloud/google-cloud-core/1.18.0/google-cloud-core-1.18.0.jar:/home/ubuntu/.m2/repository/io/grpc/grpc-protobuf-lite/1.9.0/grpc-protobuf-lite-1.9.0.jar:/home/ubuntu/.m2/repository/com/google/api/grpc/grpc-google-cloud-spanner-admin-instance-v1/0.2.1/grpc-google-cloud-spanner-admin-instance-v1-0.2.1.jar:/home/ubuntu/.m2/repository/com/google/auth/google-auth-library-oauth2-http/0.9.0/google-auth-library-oauth2-http-0.9.0.jar site.ycsb.Client -db site.ycsb.db.cloudspanner.CloudSpannerClient -P cloudspanner/conf/cloudspanner.properties -P workloads/workloada -p recordcount=10000000 -p operationcount=200000 -threads 100 -s -t
+Command line: -db site.ycsb.db.cloudspanner.CloudSpannerClient -P cloudspanner/conf/cloudspanner.properties -P workloads/workloada -p recordcount=10000000 -p operationcount=200000 -threads 100 -s -t
+YCSB Client 0.18.0-SNAPSHOT
+
+Loading workload...
+Starting test.
+2020-02-14 16:08:11:395 0 sec: 0 operations; est completion in 0 second 
+Feb 14, 2020 4:08:12 PM site.ycsb.db.cloudspanner.CloudSpannerClient init
+INFO: 
+Host: https://spanner.googleapis.com
+Project: cockroach-ephemeral
+Instance: andrei-test
+Database: ycsb
+Using queries for reads: true
+Batching inserts: 1
+Bounded staleness seconds: 0
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+2020-02-14 16:08:21:367 10 sec: 5852 operations; 585.14 current ops/sec; est completion in 5 minutes [READ: Count=2947, Max=2521087, Min=2946, Avg=164633.15, 90=484095, 99=1724415, 99.9=2467839, 99.99=2521087] [UPDATE: Count=2918, Max=2512895, Min=4468, Avg=140012.11, 90=472063, 99=1372159, 99.9=2422783, 99.99=2512895] 
+2020-02-14 16:08:31:367 20 sec: 14186 operations; 833.4 current ops/sec; est completion in 4 minutes [READ: Count=4182, Max=544767, Min=3058, Avg=135053.86, 90=471551, 99=496895, 99.9=512255, 99.99=544767] [UPDATE: Count=4141, Max=551423, Min=4352, Avg=107336.95, 90=444159, 99=495615, 99.9=507391, 99.99=551423] 
+2020-02-14 16:08:41:367 30 sec: 21249 operations; 706.3 current ops/sec; est completion in 4 minutes [READ: Count=3528, Max=1391615, Min=2920, Avg=156540.41, 90=507903, 99=704511, 99.9=754687, 99.99=1391615] [UPDATE: Count=3533, Max=761855, Min=3986, Avg=121864.06, 90=496127, 99=694783, 99.9=753151, 99.99=761855] 
+2020-02-14 16:08:51:367 40 sec: 26247 operations; 499.8 current ops/sec; est completion in 4 minutes [READ: Count=2527, Max=1425407, Min=2908, Avg=227416.89, 90=890367, 99=1085439, 99.9=1351679, 99.99=1425407] [UPDATE: Count=2476, Max=1084415, Min=3956, Avg=165892.61, 90=835583, 99=1005567, 99.9=1062911, 99.99=1084415] 
+2020-02-14 16:09:01:367 50 sec: 29993 operations; 374.6 current ops/sec; est completion in 4 minutes [READ: Count=1903, Max=1567743, Min=2826, Avg=265066.62, 90=1177599, 99=1316863, 99.9=1372159, 99.99=1567743] [UPDATE: Count=1838, Max=1412095, Min=4108, Avg=265087.37, 90=1196031, 99=1343487, 99.9=1382399, 99.99=1412095] 
+2020-02-14 16:09:11:367 60 sec: 33962 operations; 396.9 current ops/sec; est completion in 4 minutes [READ: Count=1984, Max=1486847, Min=3182, Avg=252102.23, 90=1020927, 99=1395711, 99.9=1446911, 99.99=1486847] [UPDATE: Count=1985, Max=1598463, Min=4096, Avg=254324.2, 90=1019903, 99=1392639, 99.9=1463295, 99.99=1598463] 
+2020-02-14 16:09:21:367 70 sec: 38184 operations; 422.2 current ops/sec; est completion in 4 minutes [READ: Count=2086, Max=1305599, Min=3008, Avg=258011.08, 90=1020415, 99=1225727, 99.9=1284095, 99.99=1305599] [UPDATE: Count=2137, Max=1310719, Min=4280, Avg=218645.27, 90=1023999, 99=1264639, 99.9=1300479, 99.99=1310719] 
+2020-02-14 16:09:31:367 80 sec: 43331 operations; 514.7 current ops/sec; est completion in 4 minutes [READ: Count=2556, Max=969727, Min=3178, Avg=230647.61, 90=722431, 99=912383, 99.9=961023, 99.99=969727] [UPDATE: Count=2590, Max=1046015, Min=4628, Avg=167460.2, 90=702463, 99=917503, 99.9=977407, 99.99=1046015] 
+2020-02-14 16:09:41:367 90 sec: 49677 operations; 634.6 current ops/sec; est completion in 4 minutes [READ: Count=3148, Max=935423, Min=3262, Avg=186718.07, 90=519167, 99=722943, 99.9=907263, 99.99=935423] [UPDATE: Count=3203, Max=994303, Min=4608, Avg=127535.3, 90=483071, 99=698879, 99.9=878591, 99.99=994303] 
+2020-02-14 16:09:51:367 100 sec: 55231 operations; 555.4 current ops/sec; est completion in 4 minutes [READ: Count=2694, Max=1668095, Min=3190, Avg=226365.82, 90=776191, 99=1166335, 99.9=1385471, 99.99=1668095] [UPDATE: Count=2858, Max=1453055, Min=4604, Avg=118716.36, 90=557055, 99=887807, 99.9=1364991, 99.99=1453055] 
+2020-02-14 16:10:01:367 110 sec: 61394 operations; 616.3 current ops/sec; est completion in 4 minutes [READ: Count=3042, Max=2514943, Min=2884, Avg=189875.9, 90=494847, 99=1605631, 99.9=2089983, 99.99=2514943] [UPDATE: Count=3118, Max=2097151, Min=4220, Avg=154453.84, 90=419327, 99=700927, 99.9=1972223, 99.99=2097151] 
+2020-02-14 16:10:11:367 120 sec: 66383 operations; 498.9 current ops/sec; est completion in 4 minutes [READ: Count=2474, Max=1018879, Min=3120, Avg=188707.93, 90=602111, 99=912895, 99.9=966143, 99.99=1018879] [UPDATE: Count=2517, Max=966655, Min=4568, Avg=200409.47, 90=616447, 99=913919, 99.9=961023, 99.99=966655] 
+2020-02-14 16:10:21:367 130 sec: 71616 operations; 523.3 current ops/sec; est completion in 3 minutes [READ: Count=2633, Max=1074175, Min=3178, Avg=186653.04, 90=563199, 99=945663, 99.9=1065983, 99.99=1074175] [UPDATE: Count=2599, Max=1116159, Min=4344, Avg=197549.88, 90=575487, 99=982015, 99.9=1104895, 99.99=1116159] 
+2020-02-14 16:10:31:367 140 sec: 75647 operations; 403.1 current ops/sec; est completion in 3 minutes [READ: Count=2001, Max=1208319, Min=2968, Avg=292433.1, 90=985087, 99=1118207, 99.9=1162239, 99.99=1208319] [UPDATE: Count=2030, Max=1451007, Min=4148, Avg=204301.39, 90=975359, 99=1179647, 99.9=1297407, 99.99=1451007] 
+2020-02-14 16:10:41:367 150 sec: 79960 operations; 431.3 current ops/sec; est completion in 3 minutes [READ: Count=2171, Max=1354751, Min=2958, Avg=279912.97, 90=957439, 99=1285119, 99.9=1326079, 99.99=1354751] [UPDATE: Count=2142, Max=1299455, Min=4124, Avg=176956.26, 90=896511, 99=1264639, 99.9=1297407, 99.99=1299455] 
+2020-02-14 16:10:51:367 160 sec: 85285 operations; 532.5 current ops/sec; est completion in 3 minutes [READ: Count=2676, Max=1003519, Min=3194, Avg=226956.62, 90=725503, 99=916991, 99.9=974335, 99.99=1003519] [UPDATE: Count=2650, Max=1714175, Min=4320, Avg=156396.29, 90=696319, 99=888319, 99.9=976895, 99.99=1714175] 
+2020-02-14 16:11:01:367 170 sec: 91149 operations; 586.4 current ops/sec; est completion in 3 minutes [READ: Count=2807, Max=961535, Min=3018, Avg=182501.42, 90=581631, 99=907775, 99.9=952831, 99.99=961535] [UPDATE: Count=3057, Max=951807, Min=3784, Avg=161543.17, 90=569855, 99=807935, 99.9=942079, 99.99=951807] 
+2020-02-14 16:11:11:367 180 sec: 96334 operations; 518.5 current ops/sec; est completion in 3 minutes [READ: Count=2573, Max=1324031, Min=2940, Avg=210155.01, 90=678399, 99=909823, 99.9=1226751, 99.99=1324031] [UPDATE: Count=2611, Max=968191, Min=4050, Avg=177761.31, 90=655359, 99=898047, 99.9=963071, 99.99=968191] 
+2020-02-14 16:11:21:367 190 sec: 102274 operations; 594 current ops/sec; est completion in 3 minutes [READ: Count=3019, Max=815103, Min=3100, Avg=174327.57, 90=578559, 99=618495, 99.9=660991, 99.99=815103] [UPDATE: Count=2921, Max=953343, Min=4180, Avg=158350.27, 90=580095, 99=637951, 99.9=678911, 99.99=953343] 
+2020-02-14 16:11:31:367 200 sec: 108126 operations; 585.2 current ops/sec; est completion in 2 minutes [READ: Count=2978, Max=670719, Min=3138, Avg=178285.72, 90=575487, 99=633855, 99.9=666623, 99.99=670719] [UPDATE: Count=2874, Max=670719, Min=4120, Avg=163965.16, 90=575999, 99=629247, 99.9=667135, 99.99=670719] 
+2020-02-14 16:11:41:367 210 sec: 114105 operations; 597.9 current ops/sec; est completion in 2 minutes [READ: Count=2932, Max=756735, Min=3100, Avg=179251.27, 90=578047, 99=681471, 99.9=736255, 99.99=756735] [UPDATE: Count=3047, Max=758783, Min=4420, Avg=155537.21, 90=575999, 99=687615, 99.9=721407, 99.99=758783] 
+2020-02-14 16:11:51:367 220 sec: 119779 operations; 567.4 current ops/sec; est completion in 2 minutes [READ: Count=2788, Max=689151, Min=2952, Avg=189797.89, 90=589311, 99=667647, 99.9=683007, 99.99=689151] [UPDATE: Count=2888, Max=1129471, Min=4100, Avg=163300.83, 90=586751, 99=656895, 99.9=686591, 99.99=1129471] 
+2020-02-14 16:12:01:367 230 sec: 125090 operations; 531.1 current ops/sec; est completion in 2 minutes [READ: Count=2653, Max=1107967, Min=2904, Avg=195892.8, 90=677375, 99=774655, 99.9=796159, 99.99=1107967] [UPDATE: Count=2655, Max=821247, Min=4072, Avg=179831.46, 90=678399, 99=779263, 99.9=795647, 99.99=821247] 
+2020-02-14 16:12:11:367 240 sec: 130747 operations; 565.7 current ops/sec; est completion in 2 minutes [READ: Count=2794, Max=686079, Min=3158, Avg=183329.13, 90=604671, 99=663551, 99.9=673279, 99.99=686079] [UPDATE: Count=2865, Max=679423, Min=4180, Avg=174541.17, 90=604671, 99=667647, 99.9=675839, 99.99=679423] 
+2020-02-14 16:12:21:367 250 sec: 136856 operations; 610.9 current ops/sec; est completion in 1 minute [READ: Count=3115, Max=1015295, Min=3104, Avg=167389.8, 90=519935, 99=585215, 99.9=597503, 99.99=1015295] [UPDATE: Count=2993, Max=960511, Min=4352, Avg=156798.91, 90=519679, 99=581631, 99.9=595455, 99.99=960511] 
+2020-02-14 16:12:31:367 260 sec: 142809 operations; 595.3 current ops/sec; est completion in 1 minute [READ: Count=2976, Max=1094655, Min=2856, Avg=179371.05, 90=573951, 99=596991, 99.9=679423, 99.99=1094655] [UPDATE: Count=2976, Max=1112063, Min=4192, Avg=156447.36, 90=573439, 99=596991, 99.9=682495, 99.99=1112063] 
+2020-02-14 16:12:41:367 270 sec: 148828 operations; 601.9 current ops/sec; est completion in 1 minute [READ: Count=2998, Max=610815, Min=3132, Avg=167515.72, 90=558079, 99=593407, 99.9=600575, 99.99=610815] [UPDATE: Count=3022, Max=637951, Min=4520, Avg=164651.28, 90=562687, 99=594431, 99.9=603135, 99.99=637951] 
+2020-02-14 16:12:51:367 280 sec: 154841 operations; 601.3 current ops/sec; est completion in 1 minute [READ: Count=3039, Max=605695, Min=2850, Avg=172099.04, 90=552959, 99=592383, 99.9=600575, 99.99=605695] [UPDATE: Count=2973, Max=640511, Min=4556, Avg=161253.2, 90=557567, 99=593919, 99.9=626687, 99.99=640511] 
+2020-02-14 16:13:01:367 290 sec: 160895 operations; 605.4 current ops/sec; est completion in 1 minute [READ: Count=2999, Max=1096703, Min=2990, Avg=173041.69, 90=554495, 99=582143, 99.9=591871, 99.99=1096703] [UPDATE: Count=3056, Max=1088511, Min=4304, Avg=155530.48, 90=553983, 99=582143, 99.9=592383, 99.99=1088511] 
+2020-02-14 16:13:11:367 300 sec: 166402 operations; 550.7 current ops/sec; est completion in 1 minute [READ: Count=2772, Max=1171455, Min=2792, Avg=192076.9, 90=626687, 99=967679, 99.9=1165311, 99.99=1171455] [UPDATE: Count=2736, Max=1171455, Min=4256, Avg=170652.56, 90=628223, 99=785919, 99.9=1133567, 99.99=1171455] 
+2020-02-14 16:13:21:367 310 sec: 172466 operations; 606.4 current ops/sec; est completion in 50 seconds [READ: Count=3055, Max=1478655, Min=2974, Avg=161595.75, 90=496895, 99=680447, 99.9=1400831, 99.99=1478655] [UPDATE: Count=3007, Max=1412095, Min=4104, Avg=170477.96, 90=514047, 99=666623, 99.9=1343487, 99.99=1412095] 
+2020-02-14 16:13:31:367 320 sec: 178131 operations; 566.5 current ops/sec; est completion in 40 seconds [READ: Count=2843, Max=712703, Min=3178, Avg=180556.51, 90=583679, 99=610815, 99.9=669695, 99.99=712703] [UPDATE: Count=2822, Max=1102847, Min=4284, Avg=171546.68, 90=586239, 99=638975, 99.9=677887, 99.99=1102847] 
+2020-02-14 16:13:41:367 330 sec: 184383 operations; 625.2 current ops/sec; est completion in 28 seconds [READ: Count=3164, Max=1048575, Min=2798, Avg=163011.91, 90=517119, 99=563711, 99.9=996863, 99.99=1048575] [CLEANUP: Count=1, Max=10, Min=10, Avg=10, 90=10, 99=10, 99.9=10, 99.99=10] [UPDATE: Count=3088, Max=1006079, Min=4168, Avg=156051.6, 90=519423, 99=563711, 99.9=577023, 99.99=1006079] 
+2020-02-14 16:13:51:367 340 sec: 190332 operations; 594.9 current ops/sec; est completion in 18 seconds [READ: Count=2946, Max=607231, Min=2910, Avg=167542.85, 90=518655, 99=577535, 99.9=599039, 99.99=607231] [CLEANUP: Count=8, Max=1, Min=0, Avg=0.88, 90=1, 99=1, 99.9=1, 99.99=1] [UPDATE: Count=3004, Max=646655, Min=4308, Avg=158098.87, 90=518143, 99=583679, 99.9=606719, 99.99=646655] 
+2020-02-14 16:14:01:367 350 sec: 194990 operations; 465.8 current ops/sec; est completion in 9 second [READ: Count=2299, Max=983551, Min=3024, Avg=168103.94, 90=457727, 99=825343, 99.9=932863, 99.99=983551] [CLEANUP: Count=26, Max=2, Min=1, Avg=1.12, 90=1, 99=2, 99.9=2, 99.99=2] [UPDATE: Count=2360, Max=756223, Min=4536, Avg=179775.03, 90=463615, 99=555519, 99.9=748543, 99.99=756223] 
+2020-02-14 16:14:11:367 360 sec: 198034 operations; 304.4 current ops/sec; est completion in 4 second [READ: Count=1569, Max=886271, Min=3046, Avg=158218.48, 90=436735, 99=515583, 99.9=840703, 99.99=886271] [CLEANUP: Count=31, Max=16, Min=1, Avg=2.42, 90=2, 99=16, 99.9=16, 99.99=16] [UPDATE: Count=1473, Max=876031, Min=4484, Avg=184755.67, 90=460031, 99=487935, 99.9=522495, 99.99=876031] 
+2020-02-14 16:14:21:367 370 sec: 199502 operations; 146.8 current ops/sec; est completion in 1 second [READ: Count=731, Max=467711, Min=3494, Avg=136082.59, 90=415743, 99=460799, 99.9=464127, 99.99=467711] [CLEANUP: Count=20, Max=2, Min=1, Avg=1.15, 90=2, 99=2, 99.9=2, 99.99=2] [UPDATE: Count=738, Max=470783, Min=4264, Avg=182604.68, 90=428031, 99=466431, 99.9=470783, 99.99=470783] 
+2020-02-14 16:14:31:367 380 sec: 199977 operations; 47.5 current ops/sec; est completion in 1 second [READ: Count=238, Max=445695, Min=3562, Avg=126502.73, 90=395007, 99=420095, 99.9=445695, 99.99=445695] [CLEANUP: Count=12, Max=2, Min=1, Avg=1.17, 90=2, 99=2, 99.9=2, 99.99=2] [UPDATE: Count=236, Max=615935, Min=4196, Avg=133719.42, 90=403455, 99=450815, 99.9=615935, 99.99=615935] 
+2020-02-14 16:14:33:477 382 sec: 200000 operations; 10.9 current ops/sec; [READ: Count=14, Max=402943, Min=3498, Avg=140984.93, 90=320255, 99=402943, 99.9=402943, 99.99=402943] [CLEANUP: Count=2, Max=1, Min=1, Avg=1, 90=1, 99=1, 99.9=1, 99.99=1] [UPDATE: Count=9, Max=367615, Min=6024, Avg=190965.33, 90=366079, 99=367615, 99.9=367615, 99.99=367615] 
+[OVERALL], RunTime(ms), 382110
+[OVERALL], Throughput(ops/sec), 523.409489414043
+[TOTAL_GCS_PS_Scavenge], Count, 12
+[TOTAL_GC_TIME_PS_Scavenge], Time(ms), 79
+[TOTAL_GC_TIME_%_PS_Scavenge], Time(%), 0.020674674831854704
+[TOTAL_GCS_PS_MarkSweep], Count, 1
+[TOTAL_GC_TIME_PS_MarkSweep], Time(ms), 28
+[TOTAL_GC_TIME_%_PS_MarkSweep], Time(%), 0.007327732851796603
+[TOTAL_GCs], Count, 13
+[TOTAL_GC_TIME], Time(ms), 107
+[TOTAL_GC_TIME_%], Time(%), 0.028002407683651302
+[READ], Operations, 99854
+[READ], AverageLatency(us), 189820.5200693012
+[READ], MinLatency(us), 2792
+[READ], MaxLatency(us), 2521087
+[READ], 95thPercentileLatency(us), 717823
+[READ], 99thPercentileLatency(us), 1050623
+[READ], Return=OK, 99854
+[CLEANUP], Operations, 100
+[CLEANUP], AverageLatency(us), 1.6
+[CLEANUP], MinLatency(us), 0
+[CLEANUP], MaxLatency(us), 16
+[CLEANUP], 95thPercentileLatency(us), 2
+[CLEANUP], 99thPercentileLatency(us), 16
+[UPDATE], Operations, 100146
+[UPDATE], AverageLatency(us), 165055.9844626845
+[UPDATE], MinLatency(us), 3784
+[UPDATE], MaxLatency(us), 2512895
+[UPDATE], 95thPercentileLatency(us), 673279
+[UPDATE], 99thPercentileLatency(us), 1022975
+[UPDATE], Return=OK, 100146
