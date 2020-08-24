@@ -169,3 +169,60 @@ $input
 (Or $left:^(Or) $right:^(Or) & (Succeeded $conjunct:(FindRedundantConjunct $left $right)))
 =>
 (ExtractRedundantConjunct $conjunct $left $right)
+
+# ExtractConstrainedColumnConjunct matches an OR expression in which the same
+# column appears in both the left and right OR conditions:
+#
+#   x=5 OR (x=7 AND y=2)          =>  x IN (5, 7) AND ( x=5 OR (x=7 AND y=2) )
+#   (x=5 AND y=0) OR (x=7 AND z=2)  =>  x IN (5, 7) AND ( (x=5 AND y=0) OR (x=7 AND z=2) )
+#
+# In both these cases, the constrained column is x.
+#
+# This transformation is useful for finding a conjunct that can be pushed down
+# in the query tree. For example, if the constrained column x is fully bound
+# by one side of a join, the extracted conjunct can be pushed through the join,
+# even if the remaining OR expression cannot.
+#[ExtractConstrainedColumnConjunct, Normalize]
+#(Select
+#  $input:*
+#  $filters:[
+#    $item:(FiltersItem
+#      (Or $left:^(Or) $right:^(Or) & (ColSetSucceeded $colSet:(FindConstrainedColumn $left $right)))
+#    ) & ^(IsBoundBy $item $colSet)
+#  ]
+#)
+#=>
+#(Select
+#  $input
+#  (AppendFiltersItem $filters (ExtractConstrainedColumnConjunct $colSet $left $right))
+#)
+
+[ExtractConstrainedColumnConjunctOr, Normalize]
+(Or
+  $outerLeft:(Or
+    $left:*
+    $right:* & (ColSetSucceeded $colSet:(FindConstrainedColumn $left $right))
+               & ^(ColsAreSubset (UnionCols (ScalarExprOuterCols $left) (ScalarExprOuterCols $right)) $colSet)
+  )
+  $outerRight:*
+)
+=>
+(Or
+  (And (ExtractConstrainedColumnConjunct $colSet $left $right) $outerLeft)
+  $outerRight
+)
+
+[ExtractConstrainedColumnConjunctAnd, Normalize]
+(And
+  $outerLeft:(Or
+    $left:*
+    $right:* & (ColSetSucceeded $colSet:(FindConstrainedColumn $left $right))
+               & ^(ColsAreSubset (UnionCols (ScalarExprOuterCols $left) (ScalarExprOuterCols $right)) $colSet)
+  )
+  $outerRight:*
+)
+=>
+(And
+  (And (ExtractConstrainedColumnConjunct $colSet $left $right) $outerLeft)
+  $outerRight
+)
