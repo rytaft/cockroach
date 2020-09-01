@@ -992,22 +992,22 @@ sort
       ├── fd: (48,51)-->(53)
       ├── project
       │    ├── columns: o_year:51 amount:52!null n_name:48!null
-      │    ├── inner-join (lookup part)
+      │    ├── inner-join (hash)
       │    │    ├── columns: p_partkey:1!null p_name:2!null s_suppkey:10!null s_nationkey:13!null l_orderkey:17!null l_partkey:18!null l_suppkey:19!null l_quantity:21!null l_extendedprice:22!null l_discount:23!null ps_partkey:33!null ps_suppkey:34!null ps_supplycost:36!null o_orderkey:38!null o_orderdate:42!null n_nationkey:47!null n_name:48!null
-      │    │    ├── key columns: [18] = [1]
-      │    │    ├── lookup columns are key
       │    │    ├── fd: (1)-->(2), (10)-->(13), (33,34)-->(36), (38)-->(42), (47)-->(48), (19)==(10,34), (34)==(10,19), (18)==(1,33), (33)==(1,18), (17)==(38), (38)==(17), (10)==(19,34), (13)==(47), (47)==(13), (1)==(18,33)
       │    │    ├── inner-join (hash)
       │    │    │    ├── columns: s_suppkey:10!null s_nationkey:13!null l_orderkey:17!null l_partkey:18!null l_suppkey:19!null l_quantity:21!null l_extendedprice:22!null l_discount:23!null ps_partkey:33!null ps_suppkey:34!null ps_supplycost:36!null o_orderkey:38!null o_orderdate:42!null n_nationkey:47!null n_name:48!null
       │    │    │    ├── fd: (10)-->(13), (33,34)-->(36), (38)-->(42), (47)-->(48), (19)==(10,34), (34)==(10,19), (18)==(33), (33)==(18), (17)==(38), (38)==(17), (10)==(19,34), (13)==(47), (47)==(13)
-      │    │    │    ├── inner-join (cross)
+      │    │    │    ├── inner-join (hash)
       │    │    │    │    ├── columns: l_orderkey:17!null l_partkey:18!null l_suppkey:19!null l_quantity:21!null l_extendedprice:22!null l_discount:23!null ps_partkey:33!null ps_suppkey:34!null ps_supplycost:36!null o_orderkey:38!null o_orderdate:42!null n_nationkey:47!null n_name:48!null
       │    │    │    │    ├── fd: (33,34)-->(36), (38)-->(42), (47)-->(48), (19)==(34), (34)==(19), (18)==(33), (33)==(18), (17)==(38), (38)==(17)
-      │    │    │    │    ├── inner-join (lookup orders)
-      │    │    │    │    │    ├── columns: l_orderkey:17!null l_partkey:18!null l_suppkey:19!null l_quantity:21!null l_extendedprice:22!null l_discount:23!null ps_partkey:33!null ps_suppkey:34!null ps_supplycost:36!null o_orderkey:38!null o_orderdate:42!null
-      │    │    │    │    │    ├── key columns: [17] = [38]
-      │    │    │    │    │    ├── lookup columns are key
-      │    │    │    │    │    ├── fd: (38)-->(42), (33,34)-->(36), (19)==(34), (34)==(19), (18)==(33), (33)==(18), (17)==(38), (38)==(17)
+      │    │    │    │    ├── scan orders@o_od
+      │    │    │    │    │    ├── columns: o_orderkey:38!null o_orderdate:42!null
+      │    │    │    │    │    ├── key: (38)
+      │    │    │    │    │    └── fd: (38)-->(42)
+      │    │    │    │    ├── inner-join (cross)
+      │    │    │    │    │    ├── columns: l_orderkey:17!null l_partkey:18!null l_suppkey:19!null l_quantity:21!null l_extendedprice:22!null l_discount:23!null ps_partkey:33!null ps_suppkey:34!null ps_supplycost:36!null n_nationkey:47!null n_name:48!null
+      │    │    │    │    │    ├── fd: (47)-->(48), (33,34)-->(36), (19)==(34), (34)==(19), (18)==(33), (33)==(18)
       │    │    │    │    │    ├── inner-join (hash)
       │    │    │    │    │    │    ├── columns: l_orderkey:17!null l_partkey:18!null l_suppkey:19!null l_quantity:21!null l_extendedprice:22!null l_discount:23!null ps_partkey:33!null ps_suppkey:34!null ps_supplycost:36!null
       │    │    │    │    │    │    ├── fd: (33,34)-->(36), (19)==(34), (34)==(19), (18)==(33), (33)==(18)
@@ -1020,12 +1020,13 @@ sort
       │    │    │    │    │    │    └── filters
       │    │    │    │    │    │         ├── ps_suppkey:34 = l_suppkey:19 [outer=(19,34), constraints=(/19: (/NULL - ]; /34: (/NULL - ]), fd=(19)==(34), (34)==(19)]
       │    │    │    │    │    │         └── ps_partkey:33 = l_partkey:18 [outer=(18,33), constraints=(/18: (/NULL - ]; /33: (/NULL - ]), fd=(18)==(33), (33)==(18)]
+      │    │    │    │    │    ├── scan nation
+      │    │    │    │    │    │    ├── columns: n_nationkey:47!null n_name:48!null
+      │    │    │    │    │    │    ├── key: (47)
+      │    │    │    │    │    │    └── fd: (47)-->(48)
       │    │    │    │    │    └── filters (true)
-      │    │    │    │    ├── scan nation
-      │    │    │    │    │    ├── columns: n_nationkey:47!null n_name:48!null
-      │    │    │    │    │    ├── key: (47)
-      │    │    │    │    │    └── fd: (47)-->(48)
-      │    │    │    │    └── filters (true)
+      │    │    │    │    └── filters
+      │    │    │    │         └── o_orderkey:38 = l_orderkey:17 [outer=(17,38), constraints=(/17: (/NULL - ]; /38: (/NULL - ]), fd=(17)==(38), (38)==(17)]
       │    │    │    ├── scan supplier@s_nk
       │    │    │    │    ├── columns: s_suppkey:10!null s_nationkey:13!null
       │    │    │    │    ├── key: (10)
@@ -1033,8 +1034,18 @@ sort
       │    │    │    └── filters
       │    │    │         ├── s_suppkey:10 = l_suppkey:19 [outer=(10,19), constraints=(/10: (/NULL - ]; /19: (/NULL - ]), fd=(10)==(19), (19)==(10)]
       │    │    │         └── s_nationkey:13 = n_nationkey:47 [outer=(13,47), constraints=(/13: (/NULL - ]; /47: (/NULL - ]), fd=(13)==(47), (47)==(13)]
+      │    │    ├── select
+      │    │    │    ├── columns: p_partkey:1!null p_name:2!null
+      │    │    │    ├── key: (1)
+      │    │    │    ├── fd: (1)-->(2)
+      │    │    │    ├── scan part
+      │    │    │    │    ├── columns: p_partkey:1!null p_name:2!null
+      │    │    │    │    ├── key: (1)
+      │    │    │    │    └── fd: (1)-->(2)
+      │    │    │    └── filters
+      │    │    │         └── p_name:2 LIKE '%green%' [outer=(2), constraints=(/2: (/NULL - ])]
       │    │    └── filters
-      │    │         └── p_name:2 LIKE '%green%' [outer=(2), constraints=(/2: (/NULL - ])]
+      │    │         └── p_partkey:1 = l_partkey:18 [outer=(1,18), constraints=(/1: (/NULL - ]; /18: (/NULL - ]), fd=(1)==(18), (18)==(1)]
       │    └── projections
       │         ├── extract('year', o_orderdate:42) [as=o_year:51, outer=(42)]
       │         └── (l_extendedprice:22 * (1.0 - l_discount:23)) - (ps_supplycost:36 * l_quantity:21) [as=amount:52, outer=(21-23,36)]

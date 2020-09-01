@@ -3102,7 +3102,9 @@ func (sb *statisticsBuilder) selectivityFromDistinctCounts(
 		)
 	}
 
-	return selectivity
+	// Avoid setting selectivity to 0. The stats may be stale, and we
+	// can end up with weird and inefficient plans if we estimate 0 rows.
+	return max(selectivity, epsilon)
 }
 
 // selectivityFromHistograms is similar to selectivityFromDistinctCounts, in
@@ -3138,7 +3140,10 @@ func (sb *statisticsBuilder) selectivityFromHistograms(
 			nonNullSelectivity, nullSelectivity, inputColStat.NullCount, inputStats.RowCount,
 		)
 	}
-	return selectivity
+
+	// Avoid setting selectivity to 0. The stats may be stale, and we
+	// can end up with weird and inefficient plans if we estimate 0 rows.
+	return max(selectivity, epsilon)
 }
 
 // selectivityFromNullsRemoved calculates the selectivity from null-rejecting
@@ -3161,7 +3166,9 @@ func (sb *statisticsBuilder) selectivityFromNullsRemoved(
 		}
 	})
 
-	return selectivity
+	// Avoid setting selectivity to 0. The stats may be stale, and we
+	// can end up with weird and inefficient plans if we estimate 0 rows.
+	return max(selectivity, epsilon)
 }
 
 // predicateSelectivity calculates the selectivity of a predicate, using the
@@ -3196,7 +3203,10 @@ func (sb *statisticsBuilder) selectivityFromEquivalencies(
 		equivGroup := filterFD.ComputeEquivGroup(i)
 		selectivity *= sb.selectivityFromEquivalency(equivGroup, e, s)
 	})
-	return selectivity
+
+	// Avoid setting selectivity to 0. The stats may be stale, and we
+	// can end up with weird and inefficient plans if we estimate 0 rows.
+	return max(selectivity, epsilon)
 }
 
 func (sb *statisticsBuilder) selectivityFromEquivalency(
@@ -3241,7 +3251,10 @@ func (sb *statisticsBuilder) selectivityFromEquivalenciesSemiJoin(
 			equivGroup, leftOutputCols, rightOutputCols, e, s,
 		)
 	})
-	return selectivity
+
+	// Avoid setting selectivity to 0. The stats may be stale, and we
+	// can end up with weird and inefficient plans if we estimate 0 rows.
+	return max(selectivity, epsilon)
 }
 
 func (sb *statisticsBuilder) selectivityFromEquivalencySemiJoin(
@@ -3279,7 +3292,11 @@ func (sb *statisticsBuilder) selectivityFromEquivalencySemiJoin(
 func (sb *statisticsBuilder) selectivityFromUnappliedConjuncts(
 	numUnappliedConjuncts float64,
 ) (selectivity float64) {
-	return math.Pow(unknownFilterSelectivity, numUnappliedConjuncts)
+	selectivity = math.Pow(unknownFilterSelectivity, numUnappliedConjuncts)
+
+	// Avoid setting selectivity to 0. The stats may be stale, and we
+	// can end up with weird and inefficient plans if we estimate 0 rows.
+	return max(selectivity, epsilon)
 }
 
 // tryReduceCols is used to determine which columns to use for selectivity
