@@ -85,6 +85,15 @@ func (c *CustomFuncs) MapFilterCols(
 }
 
 func (c *CustomFuncs) mapScalarExprCols(scalar opt.ScalarExpr, src, dst opt.ColSet) opt.ScalarExpr {
+	colMap := makeMapFromColSets(src, dst)
+	return c.RemapCols(scalar, colMap)
+}
+
+// makeMapFromColSets maps each column ID in src to a column ID in dst. The
+// columns IDs are mapped based on their relative positions in the column sets,
+// e.g. the third item in src maps to the third item in dst. The sets must be
+// of equal length.
+func makeMapFromColSets(src, dst opt.ColSet) opt.ColMap {
 	if src.Len() != dst.Len() {
 		panic(errors.AssertionFailedf(
 			"src and dst must have the same number of columns, src: %v, dst: %v",
@@ -101,8 +110,7 @@ func (c *CustomFuncs) mapScalarExprCols(scalar opt.ScalarExpr, src, dst opt.ColS
 		colMap.Set(int(srcCol), int(dstCol))
 		dstCol, _ = dst.Next(dstCol + 1)
 	}
-
-	return c.RemapCols(scalar, colMap)
+	return colMap
 }
 
 // checkConstraintFilters generates all filters that we can derive from the

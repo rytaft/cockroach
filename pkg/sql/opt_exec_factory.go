@@ -594,6 +594,7 @@ func (ef *execFactory) ConstructLookupJoin(
 	isSecondJoinInPairedJoiner bool,
 	reqOrdering exec.OutputOrdering,
 	locking *tree.LockingItem,
+	localityOptimized bool,
 ) (exec.Node, error) {
 	if table.IsVirtualTable() {
 		return ef.constructVirtualTableLookupJoin(joinType, input, table, index, eqCols, lookupCols, onCond)
@@ -620,6 +621,7 @@ func (ef *execFactory) ConstructLookupJoin(
 		eqColsAreKey:               eqColsAreKey,
 		isSecondJoinInPairedJoiner: isSecondJoinInPairedJoiner,
 		reqOrdering:                ReqOrdering(reqOrdering),
+		localityOptimized:          localityOptimized,
 	}
 	n.eqCols = make([]int, len(eqCols))
 	for i, c := range eqCols {

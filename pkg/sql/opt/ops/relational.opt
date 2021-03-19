@@ -815,11 +815,16 @@ define Union {
 #
 # To make normalization rules and execution simpler, both inputs to the set op
 # must have matching types.
+#
+# SetPrivate also contains an optional HardLimit. If non-zero, the set operator
+# will short-circuit after returning the given number of rows. The HardLimit
+# field should only be used for LocalityOptimizedSearch.
 [Private]
 define SetPrivate {
     LeftCols ColList
     RightCols ColList
     OutCols ColList
+    HardLimit int
 }
 
 # Intersect is an operator used to perform an intersection between the Left

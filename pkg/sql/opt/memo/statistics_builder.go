@@ -372,7 +372,7 @@ func (sb *statisticsBuilder) colStat(colSet opt.ColSet, e RelExpr) *props.Column
 		return sb.colStatIndexJoin(colSet, e.(*IndexJoinExpr))
 
 	case opt.UnionOp, opt.IntersectOp, opt.ExceptOp,
-		opt.UnionAllOp, opt.IntersectAllOp, opt.ExceptAllOp:
+		opt.UnionAllOp, opt.IntersectAllOp, opt.ExceptAllOp, opt.LocalityOptimizedSearchOp:
 		return sb.colStatSetNode(colSet, e)
 
 	case opt.GroupByOp, opt.ScalarGroupByOp, opt.DistinctOnOp, opt.EnsureDistinctOnOp,
@@ -1816,7 +1816,7 @@ func (sb *statisticsBuilder) buildSetNode(setNode RelExpr, relProps *props.Relat
 	// These calculations are an upper bound on the row count. It's likely that
 	// there is some overlap between the two sets, but not full overlap.
 	switch setNode.Op() {
-	case opt.UnionOp, opt.UnionAllOp:
+	case opt.UnionOp, opt.UnionAllOp, opt.LocalityOptimizedSearchOp:
 		s.RowCount = leftStats.RowCount + rightStats.RowCount
 
 	case opt.IntersectOp, opt.IntersectAllOp:
@@ -1864,7 +1864,7 @@ func (sb *statisticsBuilder) colStatSetNodeImpl(
 	// These calculations are an upper bound on the distinct count. It's likely
 	// that there is some overlap between the two sets, but not full overlap.
 	switch setNode.Op() {
-	case opt.UnionOp, opt.UnionAllOp:
+	case opt.UnionOp, opt.UnionAllOp, opt.LocalityOptimizedSearchOp:
 		colStat.DistinctCount = leftColStat.DistinctCount + rightColStat.DistinctCount
 		colStat.NullCount = leftNullCount + rightNullCount
 

@@ -198,7 +198,8 @@ func (c *CustomFuncs) GenerateLocalityOptimizedScan(
 	remoteScanPrivate.SetConstraint(c.e.evalCtx, &remoteConstraint)
 	remoteScan := c.e.f.ConstructScan(remoteScanPrivate)
 
-	// Add the LocalityOptimizedSearchExpr to the same group as the original scan.
+	// Add the LocalityOptimizedSearchExpr to the same group as the original scan
+	// with a limit corresponding to the maximum number of rows.
 	locOptSearch := memo.LocalityOptimizedSearchExpr{
 		Local:  localScan,
 		Remote: remoteScan,
@@ -206,6 +207,7 @@ func (c *CustomFuncs) GenerateLocalityOptimizedScan(
 			LeftCols:  localScan.Relational().OutputCols.ToList(),
 			RightCols: remoteScan.Relational().OutputCols.ToList(),
 			OutCols:   grp.Relational().OutputCols.ToList(),
+			HardLimit: int(grp.Relational().Cardinality.Max),
 		},
 	}
 	c.e.mem.AddLocalityOptimizedSearchToGroup(&locOptSearch, grp)
