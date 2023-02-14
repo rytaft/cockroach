@@ -403,7 +403,7 @@ vectorized: true
 └── • sort
     │ columns: (pktable_cat, update_rule, delete_rule, deferrability, nspname, relname, attname, nspname, relname, attname, conname, generate_series, relname)
     │ ordering: +nspname,+relname,+conname,+generate_series
-    │ estimated row count: 110,908 (missing stats)
+    │ estimated row count: 104,417 (missing stats)
     │ order: +nspname,+relname,+conname,+generate_series
     │
     └── • render
@@ -424,7 +424,7 @@ vectorized: true
         │
         └── • hash join (inner)
             │ columns: (oid, nspname, oid, relname, relnamespace, attrelid, attname, attnum, attrelid, attname, attnum, objid, refobjid, oid, relname, relkind, oid, conname, contype, condeferrable, condeferred, conrelid, confrelid, confupdtype, confdeltype, conkey, confkey, oid, relname, relnamespace, oid, nspname, generate_series)
-            │ estimated row count: 110,908 (missing stats)
+            │ estimated row count: 104,417 (missing stats)
             │ equality: (oid) = (attrelid)
             │
             ├── • hash join (inner)
@@ -444,7 +444,7 @@ vectorized: true
             │
             └── • hash join (inner)
                 │ columns: (attrelid, attname, attnum, attrelid, attname, attnum, objid, refobjid, oid, relname, relkind, oid, conname, contype, condeferrable, condeferred, conrelid, confrelid, confupdtype, confdeltype, conkey, confkey, oid, relname, relnamespace, oid, nspname, generate_series)
-                │ estimated row count: 1,779 (missing stats)
+                │ estimated row count: 1,744 (missing stats)
                 │ equality: (attrelid) = (oid)
                 │ pred: attnum = conkey[generate_series]
                 │
@@ -455,12 +455,12 @@ vectorized: true
                 │
                 └── • cross join (inner)
                     │ columns: (attrelid, attname, attnum, objid, refobjid, oid, relname, relkind, oid, conname, contype, condeferrable, condeferred, conrelid, confrelid, confupdtype, confdeltype, conkey, confkey, oid, relname, relnamespace, oid, nspname, generate_series)
-                    │ estimated row count: 539 (missing stats)
+                    │ estimated row count: 528 (missing stats)
                     │ pred: attnum = confkey[generate_series]
                     │
                     ├── • hash join (inner)
                     │   │ columns: (attrelid, attname, attnum, objid, refobjid, oid, relname, relkind, oid, conname, contype, condeferrable, condeferred, conrelid, confrelid, confupdtype, confdeltype, conkey, confkey, oid, relname, relnamespace, oid, nspname)
-                    │   │ estimated row count: 163 (missing stats)
+                    │   │ estimated row count: 160 (missing stats)
                     │   │ equality: (attrelid) = (confrelid)
                     │   │
                     │   ├── • virtual table
@@ -470,7 +470,7 @@ vectorized: true
                     │   │
                     │   └── • hash join (inner)
                     │       │ columns: (objid, refobjid, oid, relname, relkind, oid, conname, contype, condeferrable, condeferred, conrelid, confrelid, confupdtype, confdeltype, conkey, confkey, oid, relname, relnamespace, oid, nspname)
-                    │       │ estimated row count: 17 (missing stats)
+                    │       │ estimated row count: 16 (missing stats)
                     │       │ equality: (objid) = (oid)
                     │       │
                     │       ├── • hash join (inner)

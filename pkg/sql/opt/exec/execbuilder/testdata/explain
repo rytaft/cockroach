@@ -1436,7 +1436,7 @@ TABLE t
 inner-join (hash)
  ├── columns: a:1 b:2 k:6 v:7
  ├── multiplicity: left-rows(zero-or-one), right-rows(zero-or-more)
- ├── stats: [rows=990, distinct(1)=99, null(1)=0, distinct(6)=99, null(6)=0]
+ ├── stats: [rows=990, distinct(1)=100, null(1)=0, distinct(6)=100, null(6)=0]
  ├── cost: 2277.90625
  ├── fd: (6)-->(7), (1)==(6), (6)==(1)
  ├── distribution: test
@@ -2003,7 +2003,7 @@ memo (optimized, ~12KB, required=[presentation: info:10] [distribution: test])
 inner-join (hash)
  ├── columns: a:1 b:2 k:6 v:7
  ├── multiplicity: left-rows(zero-or-one), right-rows(zero-or-more)
- ├── stats: [rows=990, distinct(1)=99, null(1)=0, distinct(6)=99, null(6)=0]
+ ├── stats: [rows=990, distinct(1)=100, null(1)=0, distinct(6)=100, null(6)=0]
  ├── cost: 2277.90625
  ├── fd: (6)-->(7), (1)==(6), (6)==(1)
  ├── distribution: test

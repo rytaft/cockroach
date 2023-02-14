@@ -983,7 +983,7 @@ func (sb *statisticsBuilder) colStatScan(colSet opt.ColSet, scan *ScanExpr) *pro
 	s := relProps.Statistics()
 
 	inputColStat := sb.colStatTable(scan.Table, colSet)
-	colStat := sb.copyColStat(colSet, s, inputColStat)
+	colStat := sb.copyColStat(colSet, s, inputColStat, false /* copyHistogram */)
 
 	if sb.shouldUseHistogram(relProps) {
 		colStat.Histogram = inputColStat.Histogram
@@ -1291,6 +1291,7 @@ func (sb *statisticsBuilder) buildJoin(
 
 	// Calculate selectivity and row count
 	// -----------------------------------
+	var equivRepsHistograms map[opt.ColumnID]*props.Histogram
 	switch h.joinType {
 	case opt.SemiJoinOp, opt.SemiJoinApplyOp, opt.AntiJoinOp, opt.AntiJoinApplyOp:
 		// Treat anti join as if it were a semi join for the selectivity
@@ -1318,7 +1319,16 @@ func (sb *statisticsBuilder) buildJoin(
 			equivReps.UnionWith(h.selfJoinCols)
 		}
 
-		s.ApplySelectivity(sb.selectivityFromEquivalencies(equivReps, &h.filtersFD, join, s))
+		var equivRepsWithHist opt.ColSet
+		var sel props.Selectivity
+		equivRepsWithHist, equivRepsHistograms, sel = sb.getHistogramsFromJoinEquivalencies(
+			equivReps, &h.filtersFD, join, leftCols, rightCols, relProps,
+		)
+		s.ApplySelectivity(sel)
+
+		s.ApplySelectivity(sb.selectivityFromEquivalencies(
+			equivReps.Difference(equivRepsWithHist), &h.filtersFD, join, s,
+		))
 		var oredTermSelectivity props.Selectivity
 		oredTermSelectivity, numUnappliedConjuncts =
 			sb.selectivityFromOredEquivalencies(h, join, s, numUnappliedConjuncts, false /* semiJoin */)
@@ -1333,9 +1343,10 @@ func (sb *statisticsBuilder) buildJoin(
 	s.ApplySelectivity(sb.selectivityFromUnappliedConjuncts(numUnappliedConjuncts))
 	s.ApplySelectivity(sb.selectivityFromNullsRemoved(join, relProps.NotNullCols, constrainedCols))
 
-	// Update distinct counts based on equivalencies; this should happen after
-	// selectivityFromMultiColDistinctCounts and selectivityFromEquivalencies.
-	sb.applyEquivalencies(equivReps, &h.filtersFD, join, relProps.NotNullCols, s)
+	// Update distinct counts and histograms based on equivalencies; this should
+	// happen after selectivityFromMultiColDistinctCounts and
+	// selectivityFromEquivalencies.
+	sb.applyEquivalencies(equivReps, equivRepsHistograms, &h.filtersFD, join, relProps.NotNullCols, s)
 
 	switch h.joinType {
 	case opt.SemiJoinOp, opt.SemiJoinApplyOp, opt.AntiJoinOp, opt.AntiJoinApplyOp:
@@ -1439,10 +1450,6 @@ func (sb *statisticsBuilder) buildJoin(
 			// Ensure distinct count is non-zero.
 			colStat.DistinctCount = max(colStat.DistinctCount, 1)
 		}
-
-		// We don't yet calculate histograms correctly for joins, so remove any
-		// histograms that have been created above.
-		colStat.Histogram = nil
 	}
 
 	sb.finalizeFromCardinality(relProps)
@@ -1483,7 +1490,9 @@ func (sb *statisticsBuilder) colStatJoin(colSet opt.ColSet, join RelExpr) *props
 	switch joinType {
 	case opt.SemiJoinOp, opt.SemiJoinApplyOp, opt.AntiJoinOp, opt.AntiJoinApplyOp:
 		// Column stats come from left side of join.
-		colStat := sb.copyColStat(colSet, s, sb.colStatFromJoinLeft(colSet, join))
+		colStat := sb.copyColStat(
+			colSet, s, sb.colStatFromJoinLeft(colSet, join), false, /* copyHistogram */
+		)
 		colStat.ApplySelectivity(s.Selectivity, leftProps.Statistics().RowCount)
 		sb.finalizeFromRowCountAndDistinctCounts(colStat, s)
 		return colStat
@@ -1511,14 +1520,18 @@ func (sb *statisticsBuilder) colStatJoin(colSet opt.ColSet, join RelExpr) *props
 		leftNullCount := leftProps.Statistics().RowCount
 		rightNullCount := rightProps.Statistics().RowCount
 		if rightCols.Empty() {
-			colStat = sb.copyColStat(colSet, s, sb.colStatFromJoinLeft(colSet, join))
+			colStat = sb.copyColStat(
+				colSet, s, sb.colStatFromJoinLeft(colSet, join), false, /* copyHistogram */
+			)
 			leftNullCount = colStat.NullCount
 			switch joinType {
 			case opt.InnerJoinOp, opt.InnerJoinApplyOp, opt.RightJoinOp:
 				colStat.ApplySelectivity(s.Selectivity, inputRowCount)
 			}
 		} else if leftCols.Empty() {
-			colStat = sb.copyColStat(colSet, s, sb.colStatFromJoinRight(colSet, join))
+			colStat = sb.copyColStat(
+				colSet, s, sb.colStatFromJoinRight(colSet, join), false, /* copyHistogram */
+			)
 			rightNullCount = colStat.NullCount
 			switch joinType {
 			case opt.InnerJoinOp, opt.InnerJoinApplyOp, opt.LeftJoinOp, opt.LeftJoinApplyOp:
@@ -1862,7 +1875,7 @@ func (sb *statisticsBuilder) buildZigzagJoin(
 
 	// Update distinct counts based on equivalencies; this should happen after
 	// selectivityFromMultiColDistinctCounts and selectivityFromEquivalencies.
-	sb.applyEquivalencies(equivReps, &relProps.FuncDeps, zigzag, relProps.NotNullCols, s)
+	sb.applyEquivalencies(equivReps, nil, &relProps.FuncDeps, zigzag, relProps.NotNullCols, s)
 
 	sb.finalizeFromCardinality(relProps)
 }
@@ -2707,7 +2720,7 @@ func (sb *statisticsBuilder) copyColStatFromChild(
 	colSet opt.ColSet, e RelExpr, s *props.Statistics,
 ) *props.ColumnStatistic {
 	childColStat := sb.colStatFromChild(colSet, e, 0 /* childIdx */)
-	return sb.copyColStat(colSet, s, childColStat)
+	return sb.copyColStat(colSet, s, childColStat, true /* copyHistogram */)
 }
 
 // ensureColStat creates a column statistic for column "col" if it doesn't
@@ -2720,7 +2733,7 @@ func (sb *statisticsBuilder) ensureColStat(
 	colStat, ok := s.ColStats.Lookup(colSet)
 	if !ok {
 		colStat, _ = sb.colStatFromInput(colSet, e)
-		colStat = sb.copyColStat(colSet, s, colStat)
+		colStat = sb.copyColStat(colSet, s, colStat, false /* copyHistogram */)
 	}
 
 	colStat.DistinctCount = min(colStat.DistinctCount, maxDistinctCount)
@@ -2728,9 +2741,9 @@ func (sb *statisticsBuilder) ensureColStat(
 }
 
 // copyColStat creates a column statistic and copies the data from an existing
-// column statistic. Does not copy the histogram.
+// column statistic. Does not copy the histogram unless copyHistogram is true.
 func (sb *statisticsBuilder) copyColStat(
-	colSet opt.ColSet, s *props.Statistics, inputColStat *props.ColumnStatistic,
+	colSet opt.ColSet, s *props.Statistics, inputColStat *props.ColumnStatistic, copyHistogram bool,
 ) *props.ColumnStatistic {
 	if !inputColStat.Cols.SubsetOf(colSet) {
 		panic(errors.AssertionFailedf(
@@ -2740,6 +2753,9 @@ func (sb *statisticsBuilder) copyColStat(
 	colStat, _ := s.ColStats.Add(colSet)
 	colStat.DistinctCount = inputColStat.DistinctCount
 	colStat.NullCount = inputColStat.NullCount
+	if copyHistogram {
+		colStat.Histogram = inputColStat.Histogram
+	}
 	return colStat
 }
 
@@ -3071,7 +3087,7 @@ func (sb *statisticsBuilder) filterRelExpr(
 	// Update distinct and null counts based on equivalencies; this should
 	// happen after selectivityFromMultiColDistinctCounts and
 	// selectivityFromEquivalencies.
-	sb.applyEquivalencies(equivReps, &equivFD, e, notNullCols, s)
+	sb.applyEquivalencies(equivReps, nil, &equivFD, e, notNullCols, s)
 }
 
 // applyFilters uses constraints to update the distinct counts and histograms
@@ -3660,6 +3676,7 @@ func (sb *statisticsBuilder) updateDistinctCountFromHistogram(
 
 func (sb *statisticsBuilder) applyEquivalencies(
 	equivReps opt.ColSet,
+	histograms map[opt.ColumnID]*props.Histogram,
 	filterFD *props.FuncDepSet,
 	e RelExpr,
 	notNullCols opt.ColSet,
@@ -3667,6 +3684,9 @@ func (sb *statisticsBuilder) applyEquivalencies(
 ) {
 	equivReps.ForEach(func(i opt.ColumnID) {
 		equivGroup := filterFD.ComputeEquivGroup(i)
+		if hist, ok := histograms[i]; ok {
+			sb.updateHistogramsFromEquivalency(equivGroup, e, s, hist)
+		}
 		sb.updateDistinctNullCountsFromEquivalency(equivGroup, e, notNullCols, s)
 	})
 }
@@ -3683,7 +3703,7 @@ func (sb *statisticsBuilder) updateDistinctNullCountsFromEquivalency(
 		colStat, ok := s.ColStats.Lookup(colSet)
 		if !ok {
 			colStat, _ = sb.colStatFromInput(colSet, e)
-			colStat = sb.copyColStat(colSet, s, colStat)
+			colStat = sb.copyColStat(colSet, s, colStat, false /* copyHistogram */)
 			if colStat.NullCount > 0 && colSet.Intersects(notNullCols) {
 				colStat.NullCount = 0
 				colStat.DistinctCount = max(colStat.DistinctCount-1, epsilon)
@@ -3704,6 +3724,90 @@ func (sb *statisticsBuilder) updateDistinctNullCountsFromEquivalency(
 		colStat.DistinctCount = minDistinctCount
 		colStat.NullCount = minNullCount
 	})
+}
+
+func (sb *statisticsBuilder) updateHistogramsFromEquivalency(
+	equivGroup opt.ColSet, e RelExpr, s *props.Statistics, histogram *props.Histogram,
+) {
+	equivGroup.ForEach(func(i opt.ColumnID) {
+		colSet := opt.MakeColSet(i)
+		colStat, ok := s.ColStats.Lookup(opt.MakeColSet(i))
+		if !ok {
+			colStat, _ = sb.colStatFromInput(colSet, e)
+			colStat = sb.copyColStat(colSet, s, colStat, false /* copyHistogram */)
+		}
+		colStat.Histogram = histogram.Copy(i)
+		sb.updateDistinctCountFromHistogram(colStat, colStat.DistinctCount)
+	})
+}
+
+func (sb *statisticsBuilder) getHistogramsFromJoinEquivalencies(
+	equivReps opt.ColSet,
+	filterFD *props.FuncDepSet,
+	e RelExpr,
+	leftCols, rightCols opt.ColSet,
+	relProps *props.Relational,
+) (
+	applied opt.ColSet,
+	histograms map[opt.ColumnID]*props.Histogram,
+	selectivity props.Selectivity,
+) {
+	selectivity = props.OneSelectivity
+	if !sb.shouldUseHistogram(relProps) {
+		return opt.ColSet{}, nil, selectivity
+	}
+	s := relProps.Statistics()
+	histograms = make(map[opt.ColumnID]*props.Histogram)
+	equivReps.ForEach(func(i opt.ColumnID) {
+		equivGroup := filterFD.ComputeEquivGroup(i)
+		if hist, sel := sb.getHistogramFromJoinEquivalencyGroup(equivGroup, e, leftCols, rightCols, s); hist != nil {
+			applied.Add(i)
+			histograms[i] = hist
+			selectivity.Multiply(sel)
+		}
+	})
+	return applied, histograms, selectivity
+}
+
+// getHistogramFromJoinEquivalencyGroup returns a histogram resulting from
+// performing an inner join between the columns in equivGroup, as well as the
+// calculated selectivity of the join equality condition.
+func (sb *statisticsBuilder) getHistogramFromJoinEquivalencyGroup(
+	equivGroup opt.ColSet, e RelExpr, leftCols, rightCols opt.ColSet, s *props.Statistics,
+) (*props.Histogram, props.Selectivity) {
+	leftEquiv := equivGroup.Intersection(leftCols)
+	rightEquiv := equivGroup.Intersection(rightCols)
+	if leftEquiv.Empty() || rightEquiv.Empty() {
+		return nil, props.Selectivity{}
+	}
+	getIntersectedHistogram := func(cols opt.ColSet) *props.Histogram {
+		var hist *props.Histogram
+		cols.ForEach(func(i opt.ColumnID) {
+			colSet := opt.MakeColSet(i)
+			colStat, ok := s.ColStats.Lookup(colSet)
+			if !ok {
+				colStat, _ = sb.colStatFromInput(colSet, e)
+				colStat = sb.copyColStat(colSet, s, colStat, true /* copyHistogram */)
+			}
+			if hist == nil {
+				hist = colStat.Histogram
+			} else if colStat.Histogram != nil {
+				hist = hist.Intersect(colStat.Histogram)
+			}
+		})
+		return hist
+	}
+	leftHistogram := getIntersectedHistogram(leftEquiv)
+	rightHistogram := getIntersectedHistogram(rightEquiv)
+	if leftHistogram == nil || rightHistogram == nil {
+		return nil, props.Selectivity{}
+	}
+	// Get a histogram with the result of performing an inner join using all
+	// columns in this equivalency group, and calculate the selectivity.
+	histogram := leftHistogram.InnerJoin(rightHistogram)
+	crossProductRowCount := leftHistogram.ValuesCount() * rightHistogram.ValuesCount()
+	selectivity := props.MakeSelectivityFromFraction(histogram.ValuesCount(), crossProductRowCount)
+	return histogram, selectivity
 }
 
 // selectivityFromMultiColDistinctCounts calculates the selectivity of a filter

@@ -12991,26 +12991,18 @@ explain
  ├── mode: opt
  └── project
       ├── columns: a:1!null b:2!null
-      └── inner-join (merge)
+      └── inner-join (lookup u85353@u85353_a_b_idx)
            ├── columns: t85353.a:1!null t85353.b:2!null u85353.a:6!null u85353.b:7!null
-           ├── left ordering: +6,+7
-           ├── right ordering: +1,+2
+           ├── key columns: [1 2] = [6 7]
            ├── fd: (1)==(6), (6)==(1), (2)==(7), (7)==(2)
-           ├── scan u85353@u85353_a_b_idx
-           │    ├── columns: u85353.a:6!null u85353.b:7
-           │    ├── constraint: /6/7/8: (/NULL - /9]
-           │    ├── flags: force-index=u85353_a_b_idx
-           │    └── ordering: +6,+7
-           ├── sort
+           ├── select
            │    ├── columns: t85353.a:1!null t85353.b:2
-           │    ├── ordering: +1,+2
-           │    └── select
-           │         ├── columns: t85353.a:1!null t85353.b:2
-           │         ├── scan t85353
-           │         │    └── columns: t85353.a:1 t85353.b:2
-           │         └── filters
-           │              └── t85353.a:1 < 10 [outer=(1), constraints=(/1: (/NULL - /9]; tight)]
-           └── filters (true)
+           │    ├── scan t85353
+           │    │    └── columns: t85353.a:1 t85353.b:2
+           │    └── filters
+           │         └── t85353.a:1 < 10 [outer=(1), constraints=(/1: (/NULL - /9]; tight)]
+           └── filters
+                └── u85353.a:6 < 10 [outer=(6), constraints=(/6: (/NULL - /9]; tight)]
 
 ### BEGIN Regression tests for issue #69617
 
