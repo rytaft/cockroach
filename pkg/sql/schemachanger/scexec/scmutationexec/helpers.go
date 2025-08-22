@@ -280,6 +280,7 @@ func updateColumnExprSequenceUsage(d *descpb.ColumnDescriptor) error {
 		ids.ForEach(all.Add)
 	}
 	d.UsesSequenceIds = all.Ordered()
+	d.OwnsSequenceIds = all.Ordered()
 	return nil
 }
 

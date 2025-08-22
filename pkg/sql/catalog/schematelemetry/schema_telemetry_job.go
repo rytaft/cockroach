@@ -157,7 +157,7 @@ func processInvalidObjects(
 
 		metrics.InvalidObjects.Update(count)
 		if count == 0 {
-			log.Dev.Infof(ctx, "schema telemetry job found no invalid objects")
+			log.Infof(ctx, "schema telemetry job found no invalid objects")
 		}
 
 		return nil

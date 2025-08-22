@@ -45,12 +45,13 @@ func bootstrapSystem(
 	}{
 		{"initialize cluster version", populateVersionSetting, false},
 		{"configure key visualizer", keyVisualizerTablesMigration, true},
+		{"configure sql activity table TTLs", sqlStatsTTLChange, true},
 	} {
 		if skipSomeSteps && u.skippableInTest {
-			log.Dev.Infof(ctx, "skipping system bootstrap step %q", u.name)
+			log.Infof(ctx, "skipping system bootstrap step %q", u.name)
 			continue
 		}
-		log.Dev.Infof(ctx, "executing system bootstrap step %q", u.name)
+		log.Infof(ctx, "executing system bootstrap step %q", u.name)
 		if err := u.fn(ctx, cv, deps); err != nil {
 			return errors.Wrapf(err, "system bootstrap step %q failed", u.name)
 		}
@@ -87,15 +88,13 @@ func bootstrapCluster(
 		{"create update cached table metadata job", createUpdateTableMetadataCacheJob, true},
 		{"maybe initialize replication standby read-only catalog", maybeSetupPCRStandbyReader, true},
 		{"create sql activity flush job", createSqlActivityFlushJob, true},
-		{"configure sql activity table TTLs", sqlStatsTTLChange, true},
-		{"create hot range logger job", createHotRangesLoggerJob, true},
 	} {
 
 		if skipSomeSteps && u.skippableInTest {
-			log.Dev.Infof(ctx, "skipping bootstrap step %q", u.name)
+			log.Infof(ctx, "skipping bootstrap step %q", u.name)
 			continue
 		}
-		log.Dev.Infof(ctx, "executing bootstrap step %q", u.name)
+		log.Infof(ctx, "executing bootstrap step %q", u.name)
 		if err := u.fn(ctx, cv, deps); err != nil {
 			return errors.Wrapf(err, "bootstrap step %q failed", u.name)
 		}

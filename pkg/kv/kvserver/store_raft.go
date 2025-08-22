@@ -18,7 +18,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/raft"
 	"github.com/cockroachdb/cockroach/pkg/raft/raftpb"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
-	"github.com/cockroachdb/cockroach/pkg/rpc/rpcbase"
+	"github.com/cockroachdb/cockroach/pkg/rpc"
 	"github.com/cockroachdb/cockroach/pkg/util/admission/admissionpb"
 	"github.com/cockroachdb/cockroach/pkg/util/grunning"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
@@ -283,7 +283,7 @@ func (s *Store) HandleSnapshot(
 		if err != nil && ctx.Err() != nil {
 			// Log trace of incoming snapshot on context cancellation (e.g.
 			// times out or caller goes away).
-			log.Dev.Infof(ctx, "incoming snapshot stream failed with error: %v\ntrace:\n%v",
+			log.Infof(ctx, "incoming snapshot stream failed with error: %v\ntrace:\n%v",
 				err, tracing.SpanFromContext(ctx).GetConfiguredRecording())
 		}
 		return err
@@ -301,7 +301,7 @@ func (s *Store) uncoalesceBeats(
 		return
 	}
 	if log.V(4) {
-		log.Dev.Infof(ctx, "uncoalescing %d beats of type %v: %+v", len(beats), msgT, beats)
+		log.Infof(ctx, "uncoalescing %d beats of type %v: %+v", len(beats), msgT, beats)
 	}
 	beatReqs := make([]kvserverpb.RaftMessageRequest, len(beats))
 	batch := s.scheduler.NewEnqueueBatch()
@@ -331,7 +331,7 @@ func (s *Store) uncoalesceBeats(
 			LaggingFollowersOnQuiesce: beat.LaggingFollowersOnQuiesce,
 		}
 		if log.V(4) {
-			log.Dev.Infof(ctx, "uncoalesced beat: %+v", beatReqs[i])
+			log.Infof(ctx, "uncoalesced beat: %+v", beatReqs[i])
 		}
 
 		enqueue := s.HandleRaftUncoalescedRequest(ctx, &beatReqs[i], respStream)
@@ -421,9 +421,12 @@ func (s *Store) withReplicaForRequest(
 	f func(context.Context, *Replica) *kvpb.Error,
 ) *kvpb.Error {
 	// Lazily create the replica.
-	r, _, err := s.getOrCreateReplica(ctx, roachpb.FullReplicaID{
-		RangeID: req.RangeID, ReplicaID: req.ToReplica.ReplicaID,
-	}, &req.FromReplica)
+	r, _, err := s.getOrCreateReplica(
+		ctx,
+		req.RangeID,
+		req.ToReplica.ReplicaID,
+		&req.FromReplica,
+	)
 	if err != nil {
 		return kvpb.NewError(err)
 	}
@@ -443,7 +446,7 @@ func (s *Store) processRaftRequestWithReplica(
 	defer r.MeasureRaftCPUNanos(grunning.Time())
 
 	if verboseRaftLoggingEnabled() {
-		log.Dev.Infof(ctx, "incoming raft message:\n%s", raft.DescribeMessage(req.Message, raftEntryFormatter))
+		log.Infof(ctx, "incoming raft message:\n%s", raft.DescribeMessage(req.Message, raftEntryFormatter))
 	}
 
 	if req.Message.Type == raftpb.MsgSnap {
@@ -504,7 +507,7 @@ func (s *Store) processRaftSnapshotRequest(
 		typ := removePlaceholderFailed
 		defer func() {
 			// In the typical case, handleRaftReadyRaftMuLocked calls through to
-			// applySnapshotRaftMuLocked which will apply the snapshot and also converts the
+			// applySnapshot which will apply the snapshot and also converts the
 			// placeholder entry (if any) to the now-initialized replica. However we
 			// may also error out below, or raft may also ignore the snapshot, and so
 			// the placeholder would remain.
@@ -559,7 +562,7 @@ func (s *Store) processRaftSnapshotRequest(
 			// (i.e. follower was able to catch up via the log in the interim) or when
 			// multiple snapshots raced (as is possible when raft leadership changes
 			// and both the old and new leaders send snapshots).
-			log.Dev.Infof(ctx, "ignored stale snapshot at index %d", snapHeader.RaftMessageRequest.Message.Snapshot.Metadata.Index)
+			log.Infof(ctx, "ignored stale snapshot at index %d", snapHeader.RaftMessageRequest.Message.Snapshot.Metadata.Index)
 			s.metrics.RangeSnapshotRecvUnusable.Inc(1)
 		}
 		// If the snapshot was applied and acked with an MsgAppResp, return that
@@ -633,12 +636,14 @@ func (s *Store) HandleRaftResponse(
 				// could be re-added with a higher replicaID, but we want to clear the
 				// replica's data before that happens.
 				if log.V(1) {
-					log.Dev.Infof(ctx, "setting local replica to destroyed due to ReplicaTooOld error")
+					log.Infof(ctx, "setting local replica to destroyed due to ReplicaTooOld error")
 				}
 
 				repl.mu.Unlock()
 				nextReplicaID := tErr.ReplicaID + 1
-				return s.removeReplicaRaftMuLocked(ctx, repl, nextReplicaID, "received ReplicaTooOldError")
+				return s.removeReplicaRaftMuLocked(ctx, repl, nextReplicaID, RemoveOptions{
+					DestroyData: true,
+				})
 			case *kvpb.RaftGroupDeletedError:
 				if replErr != nil {
 					// RangeNotFoundErrors are expected here; nothing else is.
@@ -657,13 +662,7 @@ func (s *Store) HandleRaftResponse(
 			case *kvpb.StoreNotFoundError:
 				log.Warningf(ctx, "raft error: node %d claims to not contain store %d for replica %s: %s",
 					resp.FromReplica.NodeID, resp.FromReplica.StoreID, resp.FromReplica, val)
-				// This error is expected if the remote node restarted with fewer stores
-				// (before rebalancing off that now dead store is complete).
-				//
-				// Fall through intentionally.
-				//
-				// NB: as of v25.2, receivers no longer return this error in this situation
-				// and eventually, this case can be removed.
+				return val.GetDetail() // close Raft connection
 			default:
 				log.Warningf(ctx, "got error from r%d, replica %s: %s",
 					resp.RangeID, resp.FromReplica, val)
@@ -763,7 +762,7 @@ func (s *Store) processReady(rangeID roachpb.RangeID) {
 	// processing time means we'll have starved local replicas of ticks and
 	// remote replicas will likely start campaigning.
 	if elapsed >= defaultReplicaRaftMuWarnThreshold {
-		log.Dev.Infof(ctx, "%s; node might be overloaded", stats)
+		log.Infof(ctx, "%s; node might be overloaded", stats)
 	}
 }
 
@@ -884,17 +883,18 @@ func (s *Store) processRaft(ctx context.Context) {
 
 	_ = s.stopper.RunAsyncTask(ctx, "sched-tick-loop", s.raftTickLoop)
 	_ = s.stopper.RunAsyncTask(ctx, "coalesced-hb-loop", s.coalescedHeartbeatsLoop)
+	s.stopper.AddCloser(stop.CloserFn(func() {
+		s.cfg.Transport.StopIncomingRaftMessages(s.StoreID())
+		s.cfg.Transport.StopOutgoingMessage(s.StoreID())
+	}))
 
 	for _, w := range s.syncWaiters {
 		w.Start(ctx, s.stopper)
 	}
 
+	// We'll want to cancel all in-flight proposals. Proposals embed tracing
+	// spans in them, and we don't want to be leaking any.
 	s.stopper.AddCloser(stop.CloserFn(func() {
-		s.cfg.Transport.StopIncomingRaftMessages(s.StoreID())
-		s.cfg.Transport.StopOutgoingMessage(s.StoreID())
-
-		// We'll want to cancel all in-flight proposals. Proposals embed tracing
-		// spans in them, and we don't want to be leaking any.
 		s.VisitReplicas(func(r *Replica) (more bool) {
 			r.mu.Lock()
 			r.mu.proposalBuf.FlushLockedWithoutProposing(ctx)
@@ -926,6 +926,7 @@ func (s *Store) raftTickLoop(ctx context.Context) {
 		}
 		timer.Reset(until.Sub(now))
 		<-timer.C
+		timer.Read = true
 	}
 
 	// Create a config that will be used by the taskPacer, which allows us to pace
@@ -1006,7 +1007,7 @@ func (s *Store) updateIOThresholdMap() {
 	// Log whenever the set of overloaded stores changes.
 	shouldLog := log.V(1) || old.seq != cur.seq
 	if shouldLog {
-		log.Dev.Infof(
+		log.Infof(
 			s.AnnotateCtx(context.Background()), "pausable stores: %+v", cur)
 	}
 }
@@ -1028,7 +1029,7 @@ func (s *Store) updateLivenessMap() {
 		// will continually probe the connection. The check can also have false
 		// positives if the node goes down after populating the map, but that
 		// matters even less.
-		entry.IsLive = s.cfg.NodeDialer.ConnHealth(nodeID, rpcbase.SystemClass) == nil
+		entry.IsLive = s.cfg.NodeDialer.ConnHealth(nodeID, rpc.SystemClass) == nil
 		nextMap[nodeID] = entry
 	}
 	s.livenessMap.Store(nextMap)
@@ -1088,10 +1089,10 @@ func (s *Store) sendQueuedHeartbeatsToNode(
 	}
 
 	if log.V(4) {
-		log.Dev.Infof(ctx, "sending raft request (coalesced) %+v", chReq)
+		log.Infof(ctx, "sending raft request (coalesced) %+v", chReq)
 	}
 
-	if !s.cfg.Transport.SendAsync(chReq, rpcbase.SystemClass) {
+	if !s.cfg.Transport.SendAsync(chReq, rpc.SystemClass) {
 		for _, beat := range beats {
 			if repl, ok := s.mu.replicasByRangeID.Load(beat.RangeID); ok {
 				repl.addUnreachableRemoteReplica(beat.ToReplicaID)

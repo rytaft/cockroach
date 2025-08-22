@@ -289,7 +289,7 @@ func (lrw *logicalReplicationWriterProcessor) Start(ctx context.Context) {
 
 	db := lrw.FlowCtx.Cfg.DB
 
-	log.Dev.Infof(ctx, "starting logical replication writer for partition %s", lrw.spec.PartitionSpec.PartitionID)
+	log.Infof(ctx, "starting logical replication writer for partition %s", lrw.spec.PartitionSpec.PartitionID)
 
 	// Start the subscription for our partition.
 	partitionSpec := lrw.spec.PartitionSpec
@@ -338,7 +338,7 @@ func (lrw *logicalReplicationWriterProcessor) Start(ctx context.Context) {
 	lrw.subscription = sub
 	lrw.workerGroup.GoCtx(func(_ context.Context) error {
 		if err := sub.Subscribe(subscriptionCtx); err != nil {
-			log.Dev.Infof(lrw.Ctx(), "subscription completed. Error: %s", err)
+			log.Infof(lrw.Ctx(), "subscription completed. Error: %s", err)
 			lrw.sendError(errors.Wrap(err, "subscription"))
 		}
 		return nil
@@ -347,7 +347,7 @@ func (lrw *logicalReplicationWriterProcessor) Start(ctx context.Context) {
 		defer close(lrw.checkpointCh)
 		pprof.Do(ctx, pprof.Labels("proc", fmt.Sprintf("%d", lrw.ProcessorID)), func(ctx context.Context) {
 			if err := lrw.consumeEvents(ctx); err != nil {
-				log.Dev.Infof(lrw.Ctx(), "consumer completed. Error: %s", err)
+				log.Infof(lrw.Ctx(), "consumer completed. Error: %s", err)
 				lrw.sendError(errors.Wrap(err, "consume events"))
 			}
 		})
@@ -390,6 +390,7 @@ func (lrw *logicalReplicationWriterProcessor) Next() (
 			}
 		}
 	case <-lrw.aggTimer.C:
+		lrw.aggTimer.Read = true
 		lrw.aggTimer.Reset(15 * time.Second)
 		return nil, bulk.ConstructTracingAggregatorProducerMeta(lrw.Ctx(),
 			lrw.FlowCtx.NodeID.SQLInstanceID(), lrw.FlowCtx.ID, lrw.agg)
@@ -409,7 +410,7 @@ func (lrw *logicalReplicationWriterProcessor) Next() (
 
 func (lrw *logicalReplicationWriterProcessor) MoveToDrainingAndLogError(err error) {
 	if err != nil {
-		log.Dev.Infof(lrw.Ctx(), "gracefully draining with error: %s", err)
+		log.Infof(lrw.Ctx(), "gracefully draining with error: %s", err)
 	}
 	lrw.MoveToDraining(err)
 }
@@ -429,7 +430,7 @@ func (lrw *logicalReplicationWriterProcessor) close() {
 	if lrw.Closed {
 		return
 	}
-	log.Dev.Infof(lrw.Ctx(), "logical replication writer processor closing")
+	log.Infof(lrw.Ctx(), "logical replication writer processor closing")
 	defer lrw.frontier.Release()
 
 	if lrw.streamPartitionClient != nil {
@@ -475,7 +476,7 @@ func (lrw *logicalReplicationWriterProcessor) sendError(err error) {
 	select {
 	case lrw.errCh <- err:
 	default:
-		log.Dev.VInfof(lrw.Ctx(), 2, "dropping additional error: %s", err)
+		log.VInfof(lrw.Ctx(), 2, "dropping additional error: %s", err)
 	}
 }
 
@@ -492,7 +493,7 @@ func (lrw *logicalReplicationWriterProcessor) consumeEvents(ctx context.Context)
 		if timeutil.Since(lastLog) > 5*time.Minute {
 			lastLog = timeutil.Now()
 			if !lrw.frontier.Frontier().GoTime().After(timeutil.Now().Add(-5 * time.Minute)) {
-				log.Dev.Infof(lrw.Ctx(), "lagging frontier: %s with span %s", lrw.frontier.Frontier(), lrw.frontier.PeekFrontierSpan())
+				log.Infof(lrw.Ctx(), "lagging frontier: %s with span %s", lrw.frontier.Frontier(), lrw.frontier.PeekFrontierSpan())
 			}
 		}
 		lrw.debug.RecordRecvStart()
@@ -527,7 +528,7 @@ func (lrw *logicalReplicationWriterProcessor) handleEvent(
 		// via whatever mechanism handles schema changes.
 		return errors.Newf("unexpected event for online stream: %v", event)
 	case crosscluster.SplitEvent:
-		log.Dev.Infof(lrw.Ctx(), "SplitEvent received on logical replication stream")
+		log.Infof(lrw.Ctx(), "SplitEvent received on logical replication stream")
 	default:
 		return errors.Newf("unknown streaming event type %v", event.Type())
 	}
@@ -836,7 +837,7 @@ func (lrw *logicalReplicationWriterProcessor) flushBuffer(
 			lrw.dupeCount++
 			if !logged && lrw.seenEvery.ShouldLog() {
 				logged = true // don't check ShouldLog again for rest of loop.
-				log.Dev.Infof(ctx, "duplicate delivery of key %s@%d (%d prior times); %d total recent dupes.",
+				log.Infof(ctx, "duplicate delivery of key %s@%d (%d prior times); %d total recent dupes.",
 					kvs[i].KeyValue.Key, kvs[i].KeyValue.Value.Timestamp.WallTime, c, lrw.dupeCount)
 			}
 		}
@@ -1120,9 +1121,9 @@ func (lrw *logicalReplicationWriterProcessor) maybeDLQ(
 	}
 	if log.V(1) || logAllDLQs {
 		if row.IsInitialized() {
-			log.Dev.Infof(ctx, "DLQ'ing row update due to %s (%s): %s", applyErr, eligibility, row.DebugString())
+			log.Infof(ctx, "DLQ'ing row update due to %s (%s): %s", applyErr, eligibility, row.DebugString())
 		} else {
-			log.Dev.Infof(ctx, "DLQ'ing KV due to %s (%s): %s", applyErr, eligibility, event)
+			log.Infof(ctx, "DLQ'ing KV due to %s (%s): %s", applyErr, eligibility, event)
 		}
 	}
 	// We don't inc the total DLQ'ed metric here as that is done by flushBuffer

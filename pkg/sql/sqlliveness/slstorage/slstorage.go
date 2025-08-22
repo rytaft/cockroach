@@ -43,6 +43,7 @@ var GCInterval = settings.RegisterDurationSetting(
 	"server.sqlliveness.gc_interval",
 	"duration between attempts to delete extant sessions that have expired",
 	time.Hour,
+	settings.NonNegativeDuration,
 )
 
 // GCJitter specifies the jitter fraction on the interval between attempts to
@@ -387,7 +388,7 @@ func (s *Storage) deleteOrFetchSession(
 	}
 	if deleted {
 		s.metrics.SessionsDeleted.Inc(1)
-		log.Dev.Infof(ctx, "deleted session %s which expired at %s", sid, prevExpiration)
+		log.Infof(ctx, "deleted session %s which expired at %s", sid, prevExpiration)
 	}
 	return alive, expiration, nil
 }
@@ -403,6 +404,7 @@ func (s *Storage) deleteSessionsLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.Ch():
+			t.MarkRead()
 			s.deleteExpiredSessions(ctx)
 			t.Reset(s.gcInterval())
 		}
@@ -535,7 +537,7 @@ func (s *Storage) Insert(
 		s.metrics.WriteFailures.Inc(1)
 		return errors.Wrapf(err, "could not insert session %s", sid)
 	}
-	log.Dev.Infof(ctx, "inserted sqlliveness session %s with expiry %s", sid, expiration)
+	log.Infof(ctx, "inserted sqlliveness session %s with expiry %s", sid, expiration)
 	s.metrics.WriteSuccesses.Inc(1)
 	return nil
 }

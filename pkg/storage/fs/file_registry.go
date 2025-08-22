@@ -316,7 +316,7 @@ func (r *FileRegistry) maybeElideEntries(ctx context.Context) error {
 	for _, filename := range filenames {
 		entry, ok := r.writeMu.mu.entries[filename]
 		if !ok {
-			panic(errors.AssertionFailedf("entry disappeared from map"))
+			panic("entry disappeared from map")
 		}
 
 		// Some entries may be elided. This is used within
@@ -337,7 +337,7 @@ func (r *FileRegistry) maybeElideEntries(ctx context.Context) error {
 			path = r.FS.PathJoin(r.DBDir, filename)
 		}
 		if _, err := r.FS.Stat(path); oserror.IsNotExist(err) {
-			log.Dev.Infof(ctx, "eliding file registry entry %s", redact.SafeString(filename))
+			log.Infof(ctx, "eliding file registry entry %s", redact.SafeString(filename))
 			batch.DeleteEntry(filename)
 		}
 	}

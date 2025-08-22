@@ -335,7 +335,7 @@ func (s *Storage) createInstanceRow(
 		Multiplier:     2,
 	}
 	for r := retry.StartWithCtx(ctx, opts); r.Next(); {
-		log.Dev.Infof(ctx, "assigning instance id to rpc addr %s and sql addr %s", rpcAddr, sqlAddr)
+		log.Infof(ctx, "assigning instance id to rpc addr %s and sql addr %s", rpcAddr, sqlAddr)
 		instanceID, err := assignInstance()
 		// Instance was successfully assigned an ID.
 		if err == nil {
@@ -571,6 +571,7 @@ func (s *Storage) RunInstanceIDReclaimLoop(
 			case <-ctx.Done():
 				return
 			case <-timer.Ch():
+				timer.MarkRead()
 
 				// Load the regions each time we attempt to generate rows since
 				// regions can be added/removed to/from the system DB.

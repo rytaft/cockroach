@@ -35,6 +35,7 @@ var ReconciliationJobCheckpointInterval = settings.RegisterDurationSetting(
 	"spanconfig.reconciliation_job.checkpoint_interval",
 	"the frequency at which the span config reconciliation job checkpoints itself",
 	5*time.Second,
+	settings.NonNegativeDuration,
 )
 
 // Resume implements the jobs.Resumer interface.
@@ -56,7 +57,7 @@ func (r *resumer) Resume(ctx context.Context, execCtxI interface{}) (jobErr erro
 		// TODO(irfansharif): We could instead give the reconciliation job a fixed
 		// ID; comparing cluster IDs during restore doesn't help when we're
 		// restoring into the same cluster the backup was run from.
-		log.Dev.Infof(ctx, "duplicate restored job (source-cluster-id=%s, dest-cluster-id=%s); exiting",
+		log.Infof(ctx, "duplicate restored job (source-cluster-id=%s, dest-cluster-id=%s); exiting",
 			r.job.Payload().CreationClusterID, execCtx.ExecCfg().NodeInfo.LogicalClusterID())
 		return nil
 	}

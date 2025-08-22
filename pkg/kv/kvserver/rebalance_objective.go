@@ -243,7 +243,7 @@ func (rom *RebalanceObjectiveManager) maybeUpdateRebalanceObjective(ctx context.
 		return
 	}
 
-	log.Dev.Infof(ctx, "Updating the rebalance objective from %s to %s",
+	log.Infof(ctx, "Updating the rebalance objective from %s to %s",
 		prev, next)
 
 	rom.mu.obj = next
@@ -264,7 +264,7 @@ func ResolveLBRebalancingObjective(
 	// When the cpu timekeeping utility is unsupported on this aarch, the cpu
 	// usage cannot be gathered. Fall back to QPS balancing.
 	if !grunning.Supported {
-		log.Dev.Infof(ctx, "cpu timekeeping unavailable on host, reverting to qps balance objective")
+		log.Infof(ctx, "cpu timekeeping unavailable on host, reverting to qps balance objective")
 		return LBRebalancingQueries
 	}
 

@@ -283,7 +283,7 @@ func (b *blockingBuffer) Add(ctx context.Context, e Event) error {
 	}
 
 	if log.V(2) {
-		log.Dev.Infof(ctx, "Add event: %s", e.String())
+		log.Infof(ctx, "Add event: %s", e.String())
 	}
 
 	// Immediately enqueue event if it already has allocation,
@@ -528,7 +528,7 @@ func logSlowAcquisition(
 
 		return func() {
 			if shouldLog {
-				log.Dev.Infof(ctx, "acquired changefeed quota after %s (buffer=%s)", timeutil.Since(start), redact.SafeString(bufType))
+				log.Infof(ctx, "acquired changefeed quota after %s (buffer=%s)", timeutil.Since(start), redact.SafeString(bufType))
 			}
 		}
 	}

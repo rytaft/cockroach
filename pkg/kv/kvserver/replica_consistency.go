@@ -24,7 +24,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/spanset"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/stateloader"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
-	"github.com/cockroachdb/cockroach/pkg/rpc/rpcbase"
+	"github.com/cockroachdb/cockroach/pkg/rpc"
 	"github.com/cockroachdb/cockroach/pkg/settings/cluster"
 	"github.com/cockroachdb/cockroach/pkg/storage"
 	"github.com/cockroachdb/cockroach/pkg/storage/enginepb"
@@ -207,7 +207,7 @@ func (r *Replica) checkConsistencyImpl(
 		// isn't duplicated except in rare leaseholder change scenarios (and concurrent invocation of
 		// RecomputeStats is allowed because these requests block on one another). Also, we're
 		// essentially paced by the consistency checker so we won't call this too often.
-		log.Dev.Infof(ctx, "triggering stats recomputation to resolve delta of %+v", results[0].Response.Delta)
+		log.Infof(ctx, "triggering stats recomputation to resolve delta of %+v", results[0].Response.Delta)
 
 		var b kv.Batch
 		b.AddRawRequest(&kvpb.RecomputeStatsRequest{
@@ -269,11 +269,12 @@ type ConsistencyCheckResult struct {
 func (r *Replica) collectChecksumFromReplica(
 	ctx context.Context, replica roachpb.ReplicaDescriptor, id uuid.UUID,
 ) (CollectChecksumResponse, error) {
-	client, err := DialPerReplicaClient(r.store.cfg.NodeDialer, ctx, replica.NodeID, rpcbase.DefaultClass)
+	conn, err := r.store.cfg.NodeDialer.Dial(ctx, replica.NodeID, rpc.DefaultClass)
 	if err != nil {
 		return CollectChecksumResponse{},
 			errors.Wrapf(err, "could not dial node ID %d", replica.NodeID)
 	}
+	client := NewPerReplicaClient(conn)
 	req := &CollectChecksumRequest{
 		StoreRequestHeader: StoreRequestHeader{NodeID: replica.NodeID, StoreID: replica.StoreID},
 		RangeID:            r.RangeID,
@@ -397,6 +398,7 @@ func (r *Replica) getChecksum(ctx context.Context, id uuid.UUID) (CollectChecksu
 		return CollectChecksumResponse{},
 			errors.Wrapf(ctx.Err(), "while waiting for compute checksum (ID = %s)", id)
 	case <-t.C:
+		t.Read = true
 		return CollectChecksumResponse{},
 			errors.Errorf("checksum computation did not start in time for (ID = %s, wait=%s)", id, dur)
 	case taskCancel = <-c.started:
@@ -414,7 +416,7 @@ func (r *Replica) getChecksum(ctx context.Context, id uuid.UUID) (CollectChecksu
 			errors.Wrapf(ctx.Err(), "while waiting for compute checksum (ID = %s)", id)
 	case c, ok := <-c.result:
 		if log.V(1) {
-			log.Dev.Infof(ctx, "waited for compute checksum for %s", timeutil.Since(now))
+			log.Infof(ctx, "waited for compute checksum for %s", timeutil.Since(now))
 		}
 		if !ok || c.Checksum == nil {
 			return CollectChecksumResponse{}, errors.Errorf("no checksum found (ID = %s)", id)

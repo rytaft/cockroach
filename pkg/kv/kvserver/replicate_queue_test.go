@@ -30,7 +30,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/allocator"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/allocator/allocatorimpl"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/allocator/plan"
-	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/kvserverbase"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/kvserverpb"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/liveness"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/liveness/livenesspb"
@@ -84,7 +83,7 @@ func TestReplicateQueueRebalance(t *testing.T) {
 	for _, server := range tc.Servers {
 		st := server.ClusterSettings()
 		st.Manual.Store(true)
-		kvserverbase.LoadBasedRebalancingMode.Override(ctx, &st.SV, kvserverbase.LBRebalancingOff)
+		kvserver.LoadBasedRebalancingMode.Override(ctx, &st.SV, kvserver.LBRebalancingOff)
 	}
 
 	const newRanges = 10
@@ -149,7 +148,7 @@ func TestReplicateQueueRebalance(t *testing.T) {
 			if c < minReplicas {
 				err := errors.Errorf(
 					"not balanced (want at least %d replicas on all stores): %d", minReplicas, counts)
-				log.Dev.Infof(ctx, "%v", err)
+				log.Infof(ctx, "%v", err)
 				return err
 			}
 		}
@@ -338,7 +337,7 @@ func TestReplicateQueueRebalanceMultiStore(t *testing.T) {
 					if c < minReplicas {
 						err := errors.Errorf(
 							"not balanced (want at least %d replicas on all stores): %d", minReplicas, replicasPerStore)
-						log.Dev.Infof(ctx, "%v", err)
+						log.Infof(ctx, "%v", err)
 						return err
 					}
 				}
@@ -349,7 +348,7 @@ func TestReplicateQueueRebalanceMultiStore(t *testing.T) {
 					if c < minLeases {
 						err := errors.Errorf(
 							"not balanced (want at least %d leases on all stores): %d", minLeases, leasesPerStore)
-						log.Dev.Infof(ctx, "%v", err)
+						log.Infof(ctx, "%v", err)
 						return err
 					}
 				}
@@ -614,7 +613,7 @@ func checkReplicaCount(
 ) (bool, error) {
 	err := forceScanOnAllReplicationQueues(tc)
 	if err != nil {
-		log.Dev.Infof(ctx, "store.ForceReplicationScanAndProcess() failed with: %s", err)
+		log.Infof(ctx, "store.ForceReplicationScanAndProcess() failed with: %s", err)
 		return false, err
 	}
 	*rangeDesc, err = tc.LookupRange(rangeDesc.StartKey.AsRawKey())
@@ -1604,7 +1603,7 @@ func TestReplicateQueueSwapVotersWithNonVoters(t *testing.T) {
 		// any given point, any change in the configuration of these 5 replicas
 		// _must_ go through atomic non-voter promotions and voter demotions.
 		alterStatement, voterStores, nonVoterStores := synthesizeRandomConstraints()
-		log.Dev.Infof(ctx, "applying: %s", alterStatement)
+		log.Infof(ctx, "applying: %s", alterStatement)
 		_, err := tc.ServerConn(0).Exec(alterStatement)
 		require.NoError(t, err)
 		checkRelocated(t, voterStores, nonVoterStores)
@@ -1711,7 +1710,7 @@ func TestReplicateQueueShouldQueueNonVoter(t *testing.T) {
 		}
 		if matched, err := regexp.Match(matchString,
 			[]byte(recording.String())); !matched {
-			log.Dev.Infof(ctx, "didn't find matching string '%s' in trace %s",
+			log.Infof(ctx, "didn't find matching string '%s' in trace %s",
 				matchString, recording.String())
 			require.NoError(t, err)
 			return false
@@ -1940,7 +1939,7 @@ func (h delayingRaftMessageHandler) HandleRaftRequest(
 		time.Sleep(raftDelay)
 		err := h.IncomingRaftMessageHandler.HandleRaftRequest(context.Background(), req, respStream)
 		if err != nil {
-			log.Dev.Infof(ctx, "HandleRaftRequest returned err %s", err)
+			log.Infof(ctx, "HandleRaftRequest returned err %s", err)
 		}
 	}()
 
@@ -1960,19 +1959,19 @@ func TestTransferLeaseToLaggingNode(t *testing.T) {
 			0: {
 				ScanMaxIdleTime: time.Millisecond,
 				StoreSpecs: []base.StoreSpec{{
-					InMemory: true, Attributes: []string{"n1"},
+					InMemory: true, Attributes: roachpb.Attributes{Attrs: []string{"n1"}},
 				}},
 			},
 			1: {
 				ScanMaxIdleTime: time.Millisecond,
 				StoreSpecs: []base.StoreSpec{{
-					InMemory: true, Attributes: []string{"n2"},
+					InMemory: true, Attributes: roachpb.Attributes{Attrs: []string{"n2"}},
 				}},
 			},
 			2: {
 				ScanMaxIdleTime: time.Millisecond,
 				StoreSpecs: []base.StoreSpec{{
-					InMemory: true, Attributes: []string{"n3"},
+					InMemory: true, Attributes: roachpb.Attributes{Attrs: []string{"n3"}},
 				}},
 			},
 		},
@@ -1999,7 +1998,7 @@ func TestTransferLeaseToLaggingNode(t *testing.T) {
 	if leaseHolderNodeID == 1 {
 		remoteNodeID = 2
 	}
-	log.Dev.Infof(ctx, "RangeID %d, RemoteNodeID %d, LeaseHolderNodeID %d",
+	log.Infof(ctx, "RangeID %d, RemoteNodeID %d, LeaseHolderNodeID %d",
 		rangeID, remoteNodeID, leaseHolderNodeID)
 	leaseHolderSrv := tc.Servers[leaseHolderNodeID-1]
 	leaseHolderStoreID := leaseHolderSrv.GetFirstStoreID()
@@ -2091,10 +2090,10 @@ func TestTransferLeaseToLaggingNode(t *testing.T) {
 	// By now the lease holder may have changed.
 	testutils.SucceedsSoon(t, func() error {
 		leaseBefore, _ := leaseHolderRepl.GetLease()
-		log.Dev.Infof(ctx, "Lease before transfer %+v\n", leaseBefore)
+		log.Infof(ctx, "Lease before transfer %+v\n", leaseBefore)
 
 		if uint64(leaseBefore.Replica.NodeID) == remoteNodeID {
-			log.Dev.Infof(
+			log.Infof(
 				ctx,
 				"Lease successfully transferred to desired node %d\n",
 				remoteNodeID,
@@ -2225,7 +2224,7 @@ SELECT * FROM (
 	_, err := db.Exec("CREATE TABLE t (i INT PRIMARY KEY, s STRING)")
 	require.NoError(t, err)
 
-	log.Dev.Infof(ctx, "test setting ZONE survival configuration")
+	log.Infof(ctx, "test setting ZONE survival configuration")
 	// ZONE survival configuration.
 	setConstraintFn("TABLE t", 5, 3,
 		", constraints = '{\"+region=2\": 1, \"+region=3\": 1}', voter_constraints = '{\"+region=1\": 3}'")
@@ -2270,7 +2269,7 @@ SELECT * FROM (
 	})
 
 	// REGION survival configuration.
-	log.Dev.Infof(ctx, "test setting REGION survival configuration")
+	log.Infof(ctx, "test setting REGION survival configuration")
 	// Clear the rangelog so that we can rest assured to only pick up events
 	// resulting from the zone config change.
 	_, err = tc.Conns[0].ExecContext(ctx, `DELETE FROM system.rangelog WHERE TRUE`)
@@ -2472,55 +2471,12 @@ func TestReplicateQueueDecommissionScannerDisabled(t *testing.T) {
 		return nil
 	})
 
-	getDecommissioningNudgerMetricValue := func(t *testing.T, tc *testcluster.TestCluster, metricType string,
-	) int64 {
-		var total int64
-
-		for i := 0; i < tc.NumServers(); i++ {
-			store := tc.GetFirstStoreFromServer(t, i)
-			var value int64
-
-			switch metricType {
-			case "decommissioning_ranges":
-				value = store.Metrics().DecommissioningRangeCount.Value()
-			case "enqueue":
-				value = store.Metrics().DecommissioningNudgerEnqueue.Count()
-			case "not_leaseholder_or_invalid_lease":
-				value = store.Metrics().DecommissioningNudgerNotLeaseholderOrInvalidLease.Count()
-			default:
-				t.Fatalf("unknown metric type: %s", metricType)
-			}
-
-			total += value
-		}
-		return total
-	}
-
-	initialDecommissioningRanges := getDecommissioningNudgerMetricValue(t, tc, "decommissioning_ranges")
-
 	// Now add a replica to the decommissioning node and then enable the
 	// replicate queue. We expect that the replica will be removed after the
 	// decommissioning replica is noticed via maybeEnqueueProblemRange.
 	scratchKey := tc.ScratchRange(t)
 	tc.AddVotersOrFatal(t, scratchKey, tc.Target(decommissioningSrvIdx))
 	tc.ToggleReplicateQueues(true /* active */)
-
-	// Wait for the enqueue logic to trigger and validate metrics were updated.
-	testutils.SucceedsSoon(t, func() error {
-		afterDecommissioningRanges := getDecommissioningNudgerMetricValue(t, tc, "decommissioning_ranges")
-		afterEnqueued := getDecommissioningNudgerMetricValue(t, tc, "enqueue")
-
-		if afterDecommissioningRanges <= initialDecommissioningRanges {
-			return errors.New("expected DecommissioningRangeCount to increase")
-		}
-		if afterEnqueued <= 0 {
-			return errors.New("expected DecommissioningNudgerEnqueueEnqueued to be greater than 0")
-		}
-
-		return nil
-	})
-
-	// Verify that the decommissioning node has no replicas left.
 	testutils.SucceedsSoon(t, func() error {
 		var descs []*roachpb.RangeDescriptor
 		tc.GetFirstStoreFromServer(t, decommissioningSrvIdx).VisitReplicas(func(r *kvserver.Replica) bool {

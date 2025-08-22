@@ -98,13 +98,14 @@ func (j *tableMetadataUpdateJobResumer) Resume(ctx context.Context, execCtxI int
 		}
 		select {
 		case <-scheduleSettingsCh:
-			log.Dev.Info(ctx, "table metadata job settings updated, stopping timer.")
+			log.Info(ctx, "table metadata job settings updated, stopping timer.")
 			timer.Stop()
 			continue
 		case <-timer.C:
-			log.Dev.Info(ctx, "running table metadata update job after data cache expiration")
+			timer.Read = true
+			log.Info(ctx, "running table metadata update job after data cache expiration")
 		case <-signalCh:
-			log.Dev.Info(ctx, "running table metadata update job via grpc signal")
+			log.Info(ctx, "running table metadata update job via grpc signal")
 		case <-ctx.Done():
 			return ctx.Err()
 		}

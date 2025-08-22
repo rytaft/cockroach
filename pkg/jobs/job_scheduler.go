@@ -168,7 +168,7 @@ func (s *jobScheduler) processSchedule(
 	}
 
 	// Grab job executor and execute the job.
-	log.Dev.Infof(ctx,
+	log.Infof(ctx,
 		"Starting job for schedule %d (%q); scheduled to run at %s; next run scheduled for %s",
 		schedule.ScheduleID(), schedule.ScheduleLabel(),
 		schedule.ScheduledRunTime(), schedule.NextRun())
@@ -244,7 +244,7 @@ func (s *jobScheduler) executeCandidateSchedule(
 	}
 
 	if !s.env.IsExecutorEnabled(schedule.ExecutorType()) {
-		log.Dev.Infof(ctx, "Ignoring schedule %d: %s executor disabled",
+		log.Infof(ctx, "Ignoring schedule %d: %s executor disabled",
 			schedule.ScheduleID(), schedule.ExecutorType())
 		return nil
 	}
@@ -404,7 +404,7 @@ func (s *jobScheduler) runDaemon(ctx context.Context, stopper *stop.Stopper) {
 		defer cancel()
 
 		initialDelay := getInitialScanDelay(s.TestingKnobs)
-		log.Dev.Infof(ctx, "waiting %v before scheduled jobs daemon start", initialDelay)
+		log.Infof(ctx, "waiting %v before scheduled jobs daemon start", initialDelay)
 
 		if err := RegisterExecutorsMetrics(s.registry); err != nil {
 			log.Errorf(ctx, "error registering executor metrics: %+v", err)
@@ -446,7 +446,6 @@ var schedulerPaceSetting = settings.RegisterDurationSetting(
 	"jobs.scheduler.pace",
 	"how often to scan system.scheduled_jobs table",
 	time.Minute,
-	settings.PositiveDuration,
 )
 
 var schedulerMaxJobsPerIterationSetting = settings.RegisterIntSetting(

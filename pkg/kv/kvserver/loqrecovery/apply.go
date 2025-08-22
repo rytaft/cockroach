@@ -317,8 +317,6 @@ func applyReplicaUpdate(
 
 	hs.LeadEpoch = 0
 
-	// TODO(sep-raft-log): when raft and state machine engines are separated, this
-	// update must be written to the raft engine.
 	if err := sl.SetHardState(ctx, readWriter, hs); err != nil {
 		return PrepareReplicaReport{}, errors.Wrap(err, "setting HardState")
 	}
@@ -380,7 +378,7 @@ func MaybeApplyPendingRecoveryPlan(
 			return errors.Wrap(err, "failed to check cluster version against storage")
 		}
 
-		log.Dev.Infof(ctx, "applying staged loss of quorum recovery plan %s", plan.PlanID)
+		log.Infof(ctx, "applying staged loss of quorum recovery plan %s", plan.PlanID)
 		batches := make(map[roachpb.StoreID]storage.Batch)
 		for _, e := range engines {
 			ident, err := kvstorage.ReadStoreIdent(ctx, e)

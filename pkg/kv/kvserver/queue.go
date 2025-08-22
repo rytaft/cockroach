@@ -51,7 +51,8 @@ const (
 var queueGuaranteedProcessingTimeBudget = settings.RegisterDurationSetting(
 	settings.ApplicationLevel,
 	"kv.queue.process.guaranteed_time_budget",
-	"the guaranteed duration before which the processing of a queue may time out",
+	"the guaranteed duration before which the processing of a queue may "+
+		"time out",
 	defaultProcessTimeout,
 	settings.WithVisibility(settings.Reserved),
 )
@@ -573,7 +574,7 @@ func (h baseQueueHelper) MaybeAdd(
 func (h baseQueueHelper) Add(ctx context.Context, repl replicaInQueue, prio float64) {
 	_, err := h.bq.addInternal(ctx, repl.Desc(), repl.ReplicaID(), prio)
 	if err != nil && log.V(1) {
-		log.Dev.Infof(ctx, "during Add: %s", err)
+		log.Infof(ctx, "during Add: %s", err)
 	}
 }
 
@@ -595,25 +596,21 @@ func (bq *baseQueue) Async(
 	ctx context.Context, opName string, wait bool, fn func(ctx context.Context, h queueHelper),
 ) {
 	if log.V(3) {
-		log.Dev.InfofDepth(ctx, 2, "%s", redact.Safe(opName))
+		log.InfofDepth(ctx, 2, "%s", redact.Safe(opName))
 	}
 	opName += " (" + bq.name + ")"
-	bgCtx, hdl, err := bq.store.stopper.GetHandle(
-		bq.AnnotateCtx(context.Background()), stop.TaskOpts{
+	bgCtx := bq.AnnotateCtx(context.Background())
+	if err := bq.store.stopper.RunAsyncTaskEx(bgCtx,
+		stop.TaskOpts{
 			TaskName:   opName,
 			Sem:        bq.addOrMaybeAddSem,
 			WaitForSem: wait,
-		})
-	if err != nil {
-		if bq.addLogN.ShouldLog() {
-			log.Dev.Infof(ctx, "rate limited in %s: %s", redact.Safe(opName), err)
-		}
-		return
+		},
+		func(ctx context.Context) {
+			fn(ctx, baseQueueHelper{bq})
+		}); err != nil && bq.addLogN.ShouldLog() {
+		log.Infof(ctx, "rate limited in %s: %s", redact.Safe(opName), err)
 	}
-	go func(ctx context.Context) {
-		defer hdl.Activate(ctx).Release(ctx)
-		fn(ctx, baseQueueHelper{bq})
-	}(bgCtx)
 }
 
 // MaybeAddAsync offers the replica to the queue. The queue will only process a
@@ -690,7 +687,7 @@ func (bq *baseQueue) maybeAdd(ctx context.Context, repl replicaInQueue, now hlc.
 			return
 		}
 		if hasExternal {
-			log.Dev.VInfof(ctx, 1, "skipping %s for %s because it has external bytes", bq.name, realRepl)
+			log.VInfof(ctx, 1, "skipping %s for %s because it has external bytes", bq.name, realRepl)
 			return
 		}
 	}
@@ -728,7 +725,7 @@ func (bq *baseQueue) addInternal(
 		bypassDisabled := bq.store.TestingKnobs().BaseQueueDisabledBypassFilter
 		if bypassDisabled == nil || !bypassDisabled(desc.RangeID) {
 			if log.V(3) {
-				log.Dev.Infof(ctx, "queue disabled")
+				log.Infof(ctx, "queue disabled")
 			}
 			return false, errQueueDisabled
 		}
@@ -753,7 +750,7 @@ func (bq *baseQueue) addInternal(
 		// one does.
 		if priority > item.priority {
 			if log.V(1) {
-				log.Dev.Infof(ctx, "updating priority: %0.3f -> %0.3f", item.priority, priority)
+				log.Infof(ctx, "updating priority: %0.3f -> %0.3f", item.priority, priority)
 			}
 			bq.mu.priorityQ.update(item, priority)
 		}
@@ -761,7 +758,7 @@ func (bq *baseQueue) addInternal(
 	}
 
 	if log.V(3) {
-		log.Dev.Infof(ctx, "adding: priority=%0.3f", priority)
+		log.Infof(ctx, "adding: priority=%0.3f", priority)
 	}
 	item = &replicaItem{rangeID: desc.RangeID, replicaID: replicaID, priority: priority}
 	bq.addLocked(item)
@@ -818,7 +815,7 @@ func (bq *baseQueue) MaybeRemove(rangeID roachpb.RangeID) {
 	if item, ok := bq.mu.replicas[rangeID]; ok {
 		ctx := bq.AnnotateCtx(context.TODO())
 		if log.V(3) {
-			log.Dev.Infof(ctx, "%s: removing", item.rangeID)
+			log.Infof(ctx, "%s: removing", item.rangeID)
 		}
 		bq.removeLocked(item)
 	}
@@ -938,7 +935,7 @@ func (bq *baseQueue) lastProcessDuration() time.Duration {
 // recordProcessDuration records the duration of a processing run.
 func (bq *baseQueue) recordProcessDuration(ctx context.Context, dur time.Duration) {
 	if log.V(2) {
-		log.Dev.Infof(ctx, "done %s", dur)
+		log.Infof(ctx, "done %s", dur)
 	}
 	bq.processingNanos.Inc(dur.Nanoseconds())
 	atomic.StoreInt64(&bq.processDur, int64(dur))
@@ -1214,7 +1211,7 @@ func (bq *baseQueue) addToPurgatoryLocked(
 	}
 
 	if log.V(1) {
-		log.Dev.Infof(ctx, "purgatory: %v", purgErr)
+		log.Infof(ctx, "purgatory: %v", purgErr)
 	}
 
 	if _, found := bq.mu.replicas[repl.GetRangeID()]; found {
@@ -1332,7 +1329,7 @@ func (bq *baseQueue) processReplicasInPurgatory(
 	// Clean up purgatory, if empty.
 	bq.mu.Lock()
 	if len(bq.mu.purgatory) == 0 {
-		log.Dev.Infof(ctx, "purgatory is now empty")
+		log.Infof(ctx, "purgatory is now empty")
 		bq.mu.purgatory = nil
 		bq.mu.Unlock()
 		return true /* purgatoryCleared */

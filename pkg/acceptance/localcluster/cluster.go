@@ -28,7 +28,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/config/zonepb"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/rpc"
-	"github.com/cockroachdb/cockroach/pkg/rpc/rpcbase"
 	"github.com/cockroachdb/cockroach/pkg/server/serverpb"
 	"github.com/cockroachdb/cockroach/pkg/settings/cluster"
 	"github.com/cockroachdb/cockroach/pkg/testutils"
@@ -197,13 +196,13 @@ func (c *Cluster) Start(ctx context.Context) {
 		}
 	}
 
-	log.Dev.Infof(context.Background(), "started %.3fs", timeutil.Since(c.started).Seconds())
+	log.Infof(context.Background(), "started %.3fs", timeutil.Since(c.started).Seconds())
 
 	if c.Cfg.NumNodes > 1 || !c.Cfg.NoWait {
 		c.waitForFullReplication()
 	} else {
 		// NB: This is useful for TestRapidRestarts.
-		log.Dev.Infof(ctx, "not waiting for initial replication")
+		log.Infof(ctx, "not waiting for initial replication")
 	}
 }
 
@@ -314,7 +313,7 @@ func (c *Cluster) waitForFullReplication() {
 		done, detail := c.isReplicated()
 		if (done && i >= 50) || (i%50) == 0 {
 			fmt.Print(detail)
-			log.Dev.Infof(context.Background(), "waiting for replication")
+			log.Infof(context.Background(), "waiting for replication")
 		}
 		if done {
 			break
@@ -322,7 +321,7 @@ func (c *Cluster) waitForFullReplication() {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	log.Dev.Infof(context.Background(), "replicated %.3fs", timeutil.Since(c.started).Seconds())
+	log.Infof(context.Background(), "replicated %.3fs", timeutil.Since(c.started).Seconds())
 }
 
 func (c *Cluster) isReplicated() (bool, string) {
@@ -413,7 +412,7 @@ type Node struct {
 	cmd            *exec.Cmd
 	rpcPort, pgURL string // legacy: remove once 1.0.x is no longer tested
 	db             *gosql.DB
-	statusClient   serverpb.RPCStatusClient
+	statusClient   serverpb.StatusClient
 }
 
 // RPCPort returns the RPC + Postgres port.
@@ -469,7 +468,7 @@ func (n *Node) Alive() bool {
 }
 
 // StatusClient returns a StatusClient set up to talk to this node.
-func (n *Node) StatusClient(ctx context.Context) serverpb.RPCStatusClient {
+func (n *Node) StatusClient(ctx context.Context) serverpb.StatusClient {
 	n.Lock()
 	existingClient := n.statusClient
 	n.Unlock()
@@ -478,18 +477,11 @@ func (n *Node) StatusClient(ctx context.Context) serverpb.RPCStatusClient {
 		return existingClient
 	}
 
-	if !rpcbase.TODODRPC {
-		conn, err := n.rpcCtx.GRPCUnvalidatedDial(n.RPCAddr(), roachpb.Locality{}).Connect(ctx)
-		if err != nil {
-			log.Fatalf(context.Background(), "failed to initialize status client: %s", err)
-		}
-		return serverpb.NewGRPCStatusClientAdapter(conn)
-	}
-	conn, err := n.rpcCtx.DRPCUnvalidatedDial(n.RPCAddr(), roachpb.Locality{}).Connect(ctx)
+	conn, err := n.rpcCtx.GRPCUnvalidatedDial(n.RPCAddr(), roachpb.Locality{}).Connect(ctx)
 	if err != nil {
 		log.Fatalf(context.Background(), "failed to initialize status client: %s", err)
 	}
-	return serverpb.NewDRPCStatusClientAdapter(conn)
+	return serverpb.NewStatusClient(conn)
 }
 
 func (n *Node) logDir() string {
@@ -572,7 +564,7 @@ func (n *Node) startAsyncInnerLocked(ctx context.Context, joins ...string) error
 		return errors.Wrapf(err, "running %s %v", n.cmd.Path, n.cmd.Args)
 	}
 
-	log.Dev.Infof(ctx, "process %d starting: %s", n.cmd.Process.Pid, n.cmd.Args)
+	log.Infof(ctx, "process %d starting: %s", n.cmd.Process.Pid, n.cmd.Args)
 
 	go func(cmd *exec.Cmd) {
 		waitErr := cmd.Wait()
@@ -586,7 +578,7 @@ func (n *Node) startAsyncInnerLocked(ctx context.Context, joins ...string) error
 			log.Warningf(ctx, "%v", err)
 		}
 
-		log.Dev.Infof(ctx, "process %d: %s", cmd.Process.Pid, cmd.ProcessState)
+		log.Infof(ctx, "process %d: %s", cmd.Process.Pid, cmd.ProcessState)
 
 		var execErr *exec.ExitError
 		_ = errors.As(waitErr, &execErr)
@@ -701,20 +693,20 @@ func (n *Node) waitUntilLive(dur time.Duration) error {
 		}
 		n.Unlock()
 		if pid == 0 {
-			log.Dev.Info(ctx, "process already quit")
+			log.Info(ctx, "process already quit")
 			return nil
 		}
 
 		urlBytes, err := os.ReadFile(n.listeningURLFile())
 		if err != nil {
-			log.Dev.Infof(ctx, "%v", err)
+			log.Infof(ctx, "%v", err)
 			continue
 		}
 
 		var pgURL *url.URL
 		_, pgURL, err = portFromURL(string(urlBytes))
 		if err != nil {
-			log.Dev.Infof(ctx, "%v", err)
+			log.Infof(ctx, "%v", err)
 			continue
 		}
 
@@ -750,12 +742,12 @@ func (n *Node) waitUntilLive(dur time.Duration) error {
 		if err := n.db.QueryRow(
 			`SELECT value FROM crdb_internal.node_runtime_info WHERE component='UI' AND field = 'URL'`,
 		).Scan(&uiStr); err != nil {
-			log.Dev.Infof(ctx, "%v", err)
+			log.Infof(ctx, "%v", err)
 		} else if _, uiURL, err = portFromURL(uiStr); err != nil {
-			log.Dev.Infof(ctx, "%v", err)
+			log.Infof(ctx, "%v", err)
 			// TODO(tschottdorf): see above.
 		}
-		log.Dev.Infof(ctx, "process %d started (db: %s ui: %s)", pid, pgURL, uiURL)
+		log.Infof(ctx, "process %d started (db: %s ui: %s)", pid, pgURL, uiURL)
 		return nil
 	}
 	return errors.Errorf("node %+v was unable to join cluster within %s", n.Cfg, dur)

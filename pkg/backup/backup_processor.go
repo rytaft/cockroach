@@ -53,18 +53,21 @@ var (
 		"bulkio.backup.read_with_priority_after",
 		"amount of time since the read-as-of time above which a BACKUP should use priority when retrying reads",
 		time.Minute,
+		settings.NonNegativeDuration,
 		settings.WithPublic)
 	delayPerAttempt = settings.RegisterDurationSetting(
 		settings.ApplicationLevel,
 		"bulkio.backup.read_retry_delay",
 		"amount of time since the read-as-of time, per-prior attempt, to wait before making another attempt",
 		time.Second*5,
+		settings.NonNegativeDuration,
 	)
 	timeoutPerAttempt = settings.RegisterDurationSetting(
 		settings.ApplicationLevel,
 		"bulkio.backup.read_timeout",
 		"amount of time after which a read attempt is considered timed out, which causes the backup to fail",
 		time.Minute*5,
+		settings.NonNegativeDuration,
 		settings.WithPublic)
 
 	preSplitExports = settings.RegisterBoolSetting(
@@ -204,7 +207,7 @@ func (bp *backupDataProcessor) Start(ctx context.Context) {
 		for range bp.progCh {
 		}
 	}
-	log.Dev.Infof(ctx, "starting backup data")
+	log.Infof(ctx, "starting backup data")
 	if err := bp.FlowCtx.Stopper().RunAsyncTaskEx(ctx, stop.TaskOpts{
 		TaskName: "backupDataProcessor.runBackupProcessor",
 		SpanOpt:  stop.ChildSpan,
@@ -261,6 +264,7 @@ func (bp *backupDataProcessor) Next() (rowenc.EncDatumRow, *execinfrapb.Producer
 		}
 		return nil, bp.constructProgressProducerMeta(prog)
 	case <-bp.aggTimer.C:
+		bp.aggTimer.Read = true
 		bp.aggTimer.Reset(15 * time.Second)
 		return nil, bulk.ConstructTracingAggregatorProducerMeta(bp.Ctx(),
 			bp.FlowCtx.NodeID.SQLInstanceID(), bp.FlowCtx.ID, bp.agg)
@@ -354,7 +358,7 @@ func runBackupProcessor(
 		return err
 	}
 
-	log.Dev.Infof(ctx, "backup processor is assigned %d spans covering %d ranges", totalSpans, len(requestSpans))
+	log.Infof(ctx, "backup processor is assigned %d spans covering %d ranges", totalSpans, len(requestSpans))
 
 	destURI := spec.DefaultURI
 	var destLocalityKV string
@@ -372,7 +376,7 @@ func runBackupProcessor(
 			}
 		}
 		if localitySinkURI != "" {
-			log.Dev.Infof(ctx, "backing up %d spans to destination specified by locality %s", totalSpans, destLocalityKV)
+			log.Infof(ctx, "backing up %d spans to destination specified by locality %s", totalSpans, destLocalityKV)
 			destURI = localitySinkURI
 		} else {
 			nodeLocalities := make([]string, 0, len(flowCtx.EvalCtx.Locality.Tiers))
@@ -383,7 +387,7 @@ func runBackupProcessor(
 			for i := range spec.URIsByLocalityKV {
 				backupLocalities = append(backupLocalities, i)
 			}
-			log.Dev.Infof(ctx, "backing up %d spans to default locality because backup localities %s have no match in node's localities %s", totalSpans, backupLocalities, nodeLocalities)
+			log.Infof(ctx, "backing up %d spans to default locality because backup localities %s have no match in node's localities %s", totalSpans, backupLocalities, nodeLocalities)
 		}
 	}
 	if testingDiscardBackupData {
@@ -421,7 +425,7 @@ func runBackupProcessor(
 	if err != nil {
 		return err
 	}
-	log.Dev.Infof(ctx, "starting %d backup export workers", numSenders)
+	log.Infof(ctx, "starting %d backup export workers", numSenders)
 	defer release()
 
 	todo := make(chan []spanAndTime, len(requestSpans))
@@ -503,11 +507,12 @@ func runBackupProcessor(
 							// a similar or later time anyway.
 							if delay := delayPerAttempt.Get(&clusterSettings.SV) - timeutil.Since(span.lastTried); delay > 0 {
 								timer.Reset(delay)
-								log.Dev.Infof(ctx, "waiting %s to start attempt %d of remaining spans", delay, span.attempts+1)
+								log.Infof(ctx, "waiting %s to start attempt %d of remaining spans", delay, span.attempts+1)
 								select {
 								case <-ctxDone:
 									return ctx.Err()
 								case <-timer.C:
+									timer.Read = true
 								}
 							}
 

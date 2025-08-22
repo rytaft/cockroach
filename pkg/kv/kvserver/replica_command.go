@@ -31,8 +31,8 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/raft/raftpb"
 	"github.com/cockroachdb/cockroach/pkg/raft/tracker"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
+	"github.com/cockroachdb/cockroach/pkg/rpc"
 	"github.com/cockroachdb/cockroach/pkg/rpc/nodedialer"
-	"github.com/cockroachdb/cockroach/pkg/rpc/rpcbase"
 	"github.com/cockroachdb/cockroach/pkg/settings"
 	"github.com/cockroachdb/cockroach/pkg/storage"
 	"github.com/cockroachdb/cockroach/pkg/storage/enginepb"
@@ -138,6 +138,11 @@ func splitSnapshotWarningStr(rangeID roachpb.RangeID, status *raft.Status) redac
 	var s redact.RedactableString
 	if status != nil && status.RaftState == raftpb.StateLeader {
 		for replicaID, pr := range status.Progress {
+			if replicaID == status.Lead {
+				// TODO(tschottdorf): remove this line once we have picked up
+				// https://github.com/etcd-io/etcd/pull/10279
+				continue
+			}
 			if pr.State == tracker.StateReplicate {
 				// This follower is in good working order.
 				continue
@@ -835,7 +840,7 @@ func (r *Replica) AdminMerge(
 		}
 		updatedLeftDesc.IncrementGeneration()
 		updatedLeftDesc.EndKey = rightDesc.EndKey
-		log.Dev.Infof(ctx, "initiating a merge of %s into this range (%s)", &rightDesc, reason)
+		log.Infof(ctx, "initiating a merge of %s into this range (%s)", &rightDesc, reason)
 
 		// Log the merge into the range event log.
 		if err := r.store.logMerge(ctx, txn, updatedLeftDesc, rightDesc, true /* logAsync */); err != nil {
@@ -1018,11 +1023,11 @@ func waitForApplication(
 	for _, repl := range replicas {
 		repl := repl // copy for goroutine
 		g.GoCtx(func(ctx context.Context) error {
-			client, err := DialPerReplicaClient(dialer, ctx, repl.NodeID, rpcbase.DefaultClass)
+			conn, err := dialer.Dial(ctx, repl.NodeID, rpc.DefaultClass)
 			if err != nil {
 				return errors.Wrapf(err, "could not dial n%d", repl.NodeID)
 			}
-			_, err = client.WaitForApplication(ctx, &WaitForApplicationRequest{
+			_, err = NewPerReplicaClient(conn).WaitForApplication(ctx, &WaitForApplicationRequest{
 				StoreRequestHeader: StoreRequestHeader{NodeID: repl.NodeID, StoreID: repl.StoreID},
 				RangeID:            rangeID,
 				LeaseIndex:         leaseIndex,
@@ -1048,11 +1053,11 @@ func waitForReplicasInit(
 		for _, repl := range replicas {
 			repl := repl // copy for goroutine
 			g.GoCtx(func(ctx context.Context) error {
-				client, err := DialPerReplicaClient(dialer, ctx, repl.NodeID, rpcbase.DefaultClass)
+				conn, err := dialer.Dial(ctx, repl.NodeID, rpc.DefaultClass)
 				if err != nil {
 					return errors.Wrapf(err, "could not dial n%d", repl.NodeID)
 				}
-				_, err = client.WaitForReplicaInit(ctx, &WaitForReplicaInitRequest{
+				_, err = NewPerReplicaClient(conn).WaitForReplicaInit(ctx, &WaitForReplicaInitRequest{
 					StoreRequestHeader: StoreRequestHeader{NodeID: repl.NodeID, StoreID: repl.StoreID},
 					RangeID:            rangeID,
 				})
@@ -1303,7 +1308,7 @@ func (r *Replica) changeReplicasImpl(
 			// Don't leave a learner replica lying around if we didn't succeed in
 			// promoting it to a voter.
 			if adds := targets.VoterAdditions; len(adds) > 0 {
-				log.Dev.Infof(ctx, "could not promote %v to voter, rolling back: %v", adds, err)
+				log.Infof(ctx, "could not promote %v to voter, rolling back: %v", adds, err)
 				for _, target := range adds {
 					r.tryRollbackRaftLearner(ctx, r.Desc(), target, reason, details)
 				}
@@ -1920,7 +1925,7 @@ func (r *Replica) initializeRaftLearners(
 	// them all back.
 	defer func() {
 		if err != nil {
-			log.Dev.Infof(
+			log.Infof(
 				ctx,
 				"could not successfully add and upreplicate %s replica(s) on %s, rolling back: %v",
 				replicaType,
@@ -2188,7 +2193,7 @@ func (r *Replica) tryRollbackRaftLearner(
 	if err := timeutil.RunWithTimeout(
 		rollbackCtx, "learner rollback", rollbackTimeout, rollbackFn,
 	); err != nil {
-		log.Dev.Infof(
+		log.Infof(
 			ctx,
 			"failed to rollback %s %s, abandoning it for the replicate queue: %v",
 			repDesc.Type,
@@ -2197,7 +2202,7 @@ func (r *Replica) tryRollbackRaftLearner(
 		)
 		r.store.replicateQueue.MaybeAddAsync(ctx, r, r.store.Clock().NowAsClockTimestamp())
 	} else {
-		log.Dev.Infof(ctx, "rolled back %s %s in %s", repDesc.Type, target, rangeDesc)
+		log.Infof(ctx, "rolled back %s %s in %s", repDesc.Type, target, rangeDesc)
 	}
 }
 
@@ -2462,7 +2467,7 @@ func execChangeReplicasTxn(
 				// race than other operations. So we verify that the descriptor fetched
 				// from kv is indeed in a joint config, and hint to the caller that it
 				// can no-op this replication change.
-				log.Dev.Infof(
+				log.Infof(
 					ctx, "we were trying to exit a joint config but found that we are no longer in one; skipping",
 				)
 				return false /* matched */, true /* skip */
@@ -2478,7 +2483,7 @@ func execChangeReplicasTxn(
 					}
 				}
 				if learnerAlreadyRemoved {
-					log.Dev.Infof(ctx, "skipping learner removal because it was already removed")
+					log.Infof(ctx, "skipping learner removal because it was already removed")
 					return false /* matched */, true /* skip */
 				}
 			}
@@ -3158,7 +3163,7 @@ func (r *Replica) validateSnapshotDelegationRequest(
 	// send an additional one. This check attempts to minimize the change of the
 	// double snapshot being sent.
 	if replTerm < req.Term {
-		log.Dev.Infof(
+		log.Infof(
 			ctx,
 			"sender: %v is not fit to send snapshot for %v; sender term: %v coordinator term: %v",
 			req.DelegatedSender, req.CoordinatorReplica, replTerm, req.Term,
@@ -3175,7 +3180,7 @@ func (r *Replica) validateSnapshotDelegationRequest(
 	// possible that we can enforce strictly lesser than if etcd does not require
 	// previous raft log entries for appending.
 	if replIdx <= req.FirstIndex {
-		log.Dev.Infof(
+		log.Infof(
 			ctx, "sender: %v is not fit to send snapshot;"+
 				" sender first index: %v, "+
 				"coordinator log truncation constraint: %v", req.DelegatedSender, replIdx, req.FirstIndex,
@@ -3229,8 +3234,7 @@ var traceSnapshotThreshold = settings.RegisterDurationSetting(
 	"kv.trace.snapshot.enable_threshold",
 	"enables tracing and gathers timing information on all snapshots;"+
 		"snapshots with a duration longer than this threshold will have their "+
-		"trace logged (set to 0 to disable);",
-	0,
+		"trace logged (set to 0 to disable);", 0,
 )
 
 var externalFileSnapshotting = settings.RegisterBoolSetting(
@@ -3259,7 +3263,7 @@ func (r *Replica) followerSendSnapshot(
 			if sendThreshold > 0 && sendDur > sendThreshold {
 				// Note that log lines larger than 65k are truncated in the debug zip (see
 				// #50166).
-				log.Dev.Infof(ctx, "%s took %s, exceeding threshold of %s:\n%s",
+				log.Infof(ctx, "%s took %s, exceeding threshold of %s:\n%s",
 					"snapshot", sendDur, sendThreshold, sp.GetConfiguredRecording())
 			}
 			sp.Finish()
@@ -3683,7 +3687,7 @@ func (r *Replica) relocateReplicas(
 						return rangeDesc, returnErr
 					}
 					if every.ShouldLog() {
-						log.Dev.Infof(ctx, "%v", returnErr)
+						log.Infof(ctx, "%v", returnErr)
 					}
 					success = false
 					break
@@ -4212,7 +4216,7 @@ func (r *Replica) scatterRangeAndRandomizeLeases(ctx context.Context, randomizeL
 	// currentAttempt, but no backoff between different attempts.
 	for re := retry.StartWithCtx(ctx, retryOpts); re.Next(); {
 		if currentAttempt == maxAttempts {
-			log.Dev.Infof(ctx, "stopped scattering after hitting max %d attempts", maxAttempts)
+			log.Infof(ctx, "stopped scattering after hitting max %d attempts", maxAttempts)
 			break
 		}
 		desc, conf := r.DescAndSpanConfig()
@@ -4303,4 +4307,24 @@ func (r *Replica) adminScatter(
 		// adequate.
 		ReplicasScatteredBytes: stats.Total() * int64(numReplicasMoved),
 	}, nil
+}
+
+// TODO(arul): AdminVerifyProtectedTimestampRequest can entirely go away in
+// 22.2.
+func (r *Replica) adminVerifyProtectedTimestamp(
+	ctx context.Context, _ kvpb.AdminVerifyProtectedTimestampRequest,
+) (resp kvpb.AdminVerifyProtectedTimestampResponse, err error) {
+	// AdminVerifyProtectedTimestampRequest is not supported starting from the
+	// 22.1 release. We expect nodes running a 22.1 binary to still service this
+	// request in a {21.2, 22.1} mixed version cluster. This can happen if the
+	// request is initiated on a 21.2 node and the leaseholder of the range it is
+	// trying to verify is on a 22.1 node.
+	//
+	// We simply return true without attempting to verify in such a case. This
+	// ensures upstream jobs (backups) don't fail as a result. It is okay to
+	// return true regardless even if the PTS record being verified does not apply
+	// as the failure mode is non-destructive. Infact, this is the reason we're
+	// no longer supporting Verification past 22.1.
+	resp.Verified = true
+	return resp, nil
 }

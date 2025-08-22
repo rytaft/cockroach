@@ -56,25 +56,25 @@ type raftLogger struct {
 
 func (r *raftLogger) Debug(v ...interface{}) {
 	if log.V(3) {
-		log.Dev.InfofDepth(r.ctx, 1, "", v...)
+		log.InfofDepth(r.ctx, 1, "", v...)
 	}
 }
 
 func (r *raftLogger) Debugf(format string, v ...interface{}) {
 	if log.V(3) {
-		log.Dev.InfofDepth(r.ctx, 1, format, v...)
+		log.InfofDepth(r.ctx, 1, format, v...)
 	}
 }
 
 func (r *raftLogger) Info(v ...interface{}) {
 	if log.V(2) {
-		log.Dev.InfofDepth(r.ctx, 1, "", v...)
+		log.InfofDepth(r.ctx, 1, "", v...)
 	}
 }
 
 func (r *raftLogger) Infof(format string, v ...interface{}) {
 	if log.V(2) {
-		log.Dev.InfofDepth(r.ctx, 1, format, v...)
+		log.InfofDepth(r.ctx, 1, format, v...)
 	}
 }
 
@@ -150,18 +150,11 @@ func verboseRaftLoggingEnabled() bool {
 	return log.V(5)
 }
 
-func (r *Replica) maybeLogRaftReadyRaftMuLocked(ctx context.Context, ready raft.Ready) {
-	fn := r.store.TestingKnobs().RaftLogReadyRaftMuLocked
-	switch {
-	case verboseRaftLoggingEnabled():
-	case fn != nil && fn(ctx, r.RangeID, r.ReplicaID(), ready):
-	default:
+func logRaftReady(ctx context.Context, ready raft.Ready) {
+	if !verboseRaftLoggingEnabled() {
 		return
 	}
-	logRaftReady(ctx, ready)
-}
 
-func logRaftReady(ctx context.Context, ready raft.Ready) {
 	var buf bytes.Buffer
 	if ready.SoftState != nil {
 		fmt.Fprintf(&buf, "  SoftState updated: %+v\n", *ready.SoftState)
@@ -183,7 +176,7 @@ func logRaftReady(ctx context.Context, ready raft.Ready) {
 		fmt.Fprintf(&buf, "  Outgoing Message[%d]: %.200s\n",
 			i, raft.DescribeMessage(m, raftEntryFormatter))
 	}
-	log.Dev.Infof(ctx, "raft ready\n%s", buf.String())
+	log.Infof(ctx, "raft ready\n%s", buf.String())
 }
 
 func raftEntryFormatter(data []byte) string {

@@ -114,7 +114,7 @@ func TenantWatcher(tenantWatcher chan *WatchTenantsResponse) func(opts *dirOptio
 type directoryCache struct {
 	// client is the directory client instance used to make directory server
 	// calls.
-	client RPCDirectoryClient
+	client DirectoryClient
 
 	// stopper is used for graceful shutdown of the pod watcher.
 	stopper *stop.Stopper
@@ -144,7 +144,7 @@ var _ DirectoryCache = &directoryCache{}
 // NOTE: stopper.Stop must be called on the directory when it is no longer
 // needed.
 func NewDirectoryCache(
-	ctx context.Context, stopper *stop.Stopper, client RPCDirectoryClient, opts ...DirOption,
+	ctx context.Context, stopper *stop.Stopper, client DirectoryClient, opts ...DirOption,
 ) (DirectoryCache, error) {
 	dir := &directoryCache{client: client, stopper: stopper}
 
@@ -317,7 +317,7 @@ func (d *directoryCache) getEntry(
 		}
 
 		// Create the tenant entry and enter it into the tenants map.
-		log.Dev.Infof(ctx, "creating directory entry for tenant %d", tenantID)
+		log.Infof(ctx, "creating directory entry for tenant %d", tenantID)
 		entry = &tenantEntry{TenantID: tenantID, RefreshDelay: d.options.refreshDelay}
 		d.mut.tenants[tenantID] = entry
 		return entry
@@ -332,7 +332,7 @@ func (d *directoryCache) getEntry(
 	if err != nil {
 		// Remove the entry from the tenants map, since initialization failed.
 		if d.deleteEntry(entry) {
-			log.Dev.Infof(ctx, "error initializing tenant %d: %v", tenantID, err)
+			log.Infof(ctx, "error initializing tenant %d: %v", tenantID, err)
 		}
 		return nil, err
 	}
@@ -380,7 +380,7 @@ func (d *directoryCache) watchPods(ctx context.Context, stopper *stop.Stopper) e
 	waitInit.Add(1)
 
 	err := stopper.RunAsyncTask(ctx, "watch-pods-client", func(ctx context.Context) {
-		var client RPCDirectory_WatchPodsClient
+		var client Directory_WatchPodsClient
 		var err error
 		firstRun := true
 		ctx, cancel := stopper.WithCancelOnQuiesce(ctx)
@@ -403,7 +403,7 @@ func (d *directoryCache) watchPods(ctx context.Context, stopper *stop.Stopper) e
 					sleepContext(ctx, time.Second)
 					continue
 				} else {
-					log.Dev.Info(ctx, "established watch on pods")
+					log.Info(ctx, "established watch on pods")
 				}
 			}
 
@@ -472,18 +472,18 @@ func (d *directoryCache) updateTenantPodEntry(ctx context.Context, pod *Pod) {
 	case RUNNING, DRAINING:
 		// Add entries of RUNNING and DRAINING pods if they are not already present.
 		if entry.AddPod(pod) {
-			log.Dev.Infof(ctx, "added IP address %s for tenant %d", pod.Addr, pod.TenantID)
+			log.Infof(ctx, "added IP address %s for tenant %d", pod.Addr, pod.TenantID)
 		} else {
-			log.Dev.Infof(ctx, "updated IP address %s for tenant %d", pod.Addr, pod.TenantID)
+			log.Infof(ctx, "updated IP address %s for tenant %d", pod.Addr, pod.TenantID)
 		}
 	case DELETING:
 		// Remove addresses of DELETING pods.
 		if entry.RemovePodByAddr(pod.Addr) {
-			log.Dev.Infof(ctx, "deleted IP address %s for tenant %d", pod.Addr, pod.TenantID)
+			log.Infof(ctx, "deleted IP address %s for tenant %d", pod.Addr, pod.TenantID)
 		}
 	default:
 		// Pods with UNKNOWN state.
-		log.Dev.Infof(ctx, "invalid pod entry with IP address %s for tenant %d", pod.Addr, pod.TenantID)
+		log.Infof(ctx, "invalid pod entry with IP address %s for tenant %d", pod.Addr, pod.TenantID)
 	}
 }
 
@@ -492,7 +492,7 @@ func (d *directoryCache) updateTenantPodEntry(ctx context.Context, pod *Pod) {
 // notification and update the directory to reflect that change.
 func (d *directoryCache) watchTenants(ctx context.Context, stopper *stop.Stopper) error {
 	return stopper.RunAsyncTask(ctx, "watch-tenants-client", func(ctx context.Context) {
-		var client RPCDirectory_WatchTenantsClient
+		var client Directory_WatchTenantsClient
 		var err error
 		ctx, cancel := stopper.WithCancelOnQuiesce(ctx)
 		defer cancel()
@@ -510,7 +510,7 @@ func (d *directoryCache) watchTenants(ctx context.Context, stopper *stop.Stopper
 					sleepContext(ctx, time.Second)
 					continue
 				} else {
-					log.Dev.Info(ctx, "established watch on tenants")
+					log.Info(ctx, "established watch on tenants")
 				}
 			}
 
@@ -586,13 +586,13 @@ func (d *directoryCache) updateTenantMetadataEntry(
 	switch typ {
 	case EVENT_ADDED, EVENT_MODIFIED:
 		entry.UpdateTenant(tenant)
-		log.Dev.Infof(ctx, "updated entry for tenant %d: %v", tenant.TenantID, tenant)
+		log.Infof(ctx, "updated entry for tenant %d: %v", tenant.TenantID, tenant)
 	case EVENT_DELETED:
 		entry.MarkInvalid()
-		log.Dev.Infof(ctx, "invalidating entry for tenant %d", tenant.TenantID)
+		log.Infof(ctx, "invalidating entry for tenant %d", tenant.TenantID)
 	default:
 		// Watch events with EVENT_UNKNOWN type
-		log.Dev.Infof(ctx, "invalid watcher entry for tenant %d: %v", tenant.TenantID, tenant)
+		log.Infof(ctx, "invalid watcher entry for tenant %d: %v", tenant.TenantID, tenant)
 	}
 }
 

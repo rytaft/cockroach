@@ -194,9 +194,7 @@ func newProxyHandler(
 	proxyMetrics *metrics,
 	options ProxyOptions,
 ) (*proxyHandler, error) {
-	// The proxy handler shares the same lifetime as the proxy which will shutdown
-	// via the stopper, so we can ignore the cancellation function here.
-	ctx, _ = stopper.WithCancelOnQuiesce(ctx) // nolint:quiesce
+	ctx, _ = stopper.WithCancelOnQuiesce(ctx)
 
 	handler := proxyHandler{
 		stopper:       stopper,
@@ -281,7 +279,7 @@ func newProxyHandler(
 		dirOpts = append(dirOpts, handler.testingKnobs.dirOpts...)
 	}
 
-	client := tenant.NewGRPCDirectoryClientAdapter(conn)
+	client := tenant.NewDirectoryClient(conn)
 	handler.directoryCache, err = tenant.NewDirectoryCache(ctx, stopper, client, dirOpts...)
 	if err != nil {
 		return nil, err
@@ -546,7 +544,7 @@ func (handler *proxyHandler) handle(
 	// the session logs.
 	connBegin := timeutil.Now()
 	defer func() {
-		log.Dev.Infof(ctx, "closing after %.2fs", timeutil.Since(connBegin).Seconds())
+		log.Infof(ctx, "closing after %.2fs", timeutil.Since(connBegin).Seconds())
 	}()
 
 	// Wrap the client connection with an error annotater. WARNING: The TLS

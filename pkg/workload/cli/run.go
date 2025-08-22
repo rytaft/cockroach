@@ -90,10 +90,6 @@ var histogramsMaxLatency = runFlags.Duration(
 	"histograms-max-latency", 100*time.Second,
 	"Expected maximum latency of running a query")
 
-var disableTempHistogramFile = runFlags.Bool("disable-temp-hist-file", false,
-	"If true, disables the use of a temporary file for incremental histogram data. Instead, data is written directly to the final file. "+
-		"Note: If the workload stops abruptly, the final file may become corrupted.")
-
 var openmetricsLabels = runFlags.String("openmetrics-labels", "",
 	"Comma separated list of key value pairs used as labels, used by openmetrics exporter. Eg 'cloud=aws, workload=tpcc'")
 
@@ -402,7 +398,7 @@ func runRun(gen workload.Generator, urls []string, dbName string) error {
 		return err
 	}
 	if *doInit || *drop {
-		log.Dev.Info(ctx, `DEPRECATION: `+
+		log.Info(ctx, `DEPRECATION: `+
 			`the --init flag on "workload run" will no longer be supported after 19.2`)
 		for {
 			err = runInitImpl(ctx, gen, initDB, dbName)
@@ -412,7 +408,7 @@ func runRun(gen workload.Generator, urls []string, dbName string) error {
 			if !*tolerateErrors {
 				return err
 			}
-			log.Dev.Infof(ctx, "retrying after error during init: %v", err)
+			log.Infof(ctx, "retrying after error during init: %v", err)
 		}
 	}
 
@@ -461,22 +457,19 @@ func runRun(gen workload.Generator, urls []string, dbName string) error {
 
 	var ops workload.QueryLoad
 	prepareStart := timeutil.Now()
-	log.Dev.Infof(ctx, "creating load generator...")
-
+	log.Infof(ctx, "creating load generator...")
+	// We set up a timer that cancels this context after prepareTimeout,
+	// but we'll collect the stacks before we do, so that they can be
+	// logged.
 	prepareCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	stacksCh := make(chan []byte, 1)
-
+	const prepareTimeout = 90 * time.Minute
+	defer time.AfterFunc(prepareTimeout, func() {
+		stacksCh <- allstacks.Get()
+		cancel()
+	}).Stop()
 	if prepareErr := func(ctx context.Context) error {
-		// We set up a timer that cancels this context after prepareTimeout,
-		// but we'll collect the stacks before we do, so that they can be
-		// logged.
-		const prepareTimeout = 90 * time.Minute
-		defer time.AfterFunc(prepareTimeout, func() {
-			stacksCh <- allstacks.Get()
-			cancel()
-		}).Stop()
-
 		retry := retry.StartWithCtx(ctx, retry.Options{})
 		var err error
 		for retry.Next() {
@@ -503,7 +496,7 @@ func runRun(gen workload.Generator, urls []string, dbName string) error {
 	}(prepareCtx); prepareErr != nil {
 		return prepareErr
 	}
-	log.Dev.Infof(ctx, "creating load generator... done (took %s)", timeutil.Since(prepareStart))
+	log.Infof(ctx, "creating load generator... done (took %s)", timeutil.Since(prepareStart))
 
 	start := timeutil.Now()
 	errCh := make(chan error)
@@ -653,7 +646,7 @@ func runRun(gen workload.Generator, urls []string, dbName string) error {
 // if a seed is being used.
 func maybeLogRandomSeed(ctx context.Context, gen workload.Generator) {
 	if randomSeed := gen.Meta().RandomSeed; randomSeed != nil {
-		log.Dev.Infof(ctx, "%s", randomSeed.LogMessage())
+		log.Infof(ctx, "%s", randomSeed.LogMessage())
 	}
 }
 
@@ -703,12 +696,8 @@ func maybeInitAndCreateExporter() (exporter.Exporter, *os.File, error) {
 	dir := filepath.Dir(finalPath)
 	tempFilePath = filepath.Join(dir, fmt.Sprintf(".%s.tmp.%d", filepath.Base(finalPath), timeutil.Now().UnixNano()))
 
-	// Create the file based on the disableTempHistogramFile flag
-	if *disableTempHistogramFile {
-		file, err = os.Create(finalPath)
-	} else {
-		file, err = os.Create(tempFilePath)
-	}
+	// Create the temporary file instead of the final file
+	file, err = os.Create(tempFilePath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -723,16 +712,9 @@ func closeExporter(ctx context.Context, metricsExporter exporter.Exporter, file 
 	if metricsExporter != nil {
 		if err := metricsExporter.Close(func() error {
 			if file == nil {
-				log.Dev.Infof(ctx, "no file to close")
+				log.Infof(ctx, "no file to close")
 				return nil
 			}
-
-			// if disableTempHistogramFile is enabled, directly close the final file.
-			if *disableTempHistogramFile {
-				return file.Close()
-
-			}
-
 			return renameTempFile(file, *histograms)
 		}); err != nil {
 			log.Warningf(ctx, "failed to close metrics exporter: %v", err)

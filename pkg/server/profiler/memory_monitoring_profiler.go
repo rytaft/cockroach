@@ -63,7 +63,7 @@ func NewMemoryMonitoringProfiler(
 			envMemprofInterval,
 		),
 	}
-	log.Dev.Infof(ctx, "writing memory monitoring dumps to %s at least every %s", log.SafeManaged(dir), mmp.resetInterval())
+	log.Infof(ctx, "writing memory monitoring dumps to %s at least every %s", log.SafeManaged(dir), mmp.resetInterval())
 	return mmp, nil
 }
 

@@ -134,7 +134,7 @@ func (c *connector) runTenantSettingsSubscription(ctx context.Context, startupCh
 				// servers that send it) because when it is sent it is always
 				// sent prior to the setting overrides.
 				if settingsReady {
-					log.Dev.Infof(ctx, "received initial tenant settings")
+					log.Infof(ctx, "received initial tenant settings")
 
 					if startupCh != nil {
 						select {
@@ -173,7 +173,7 @@ func (c *connector) processMetadataEvent(ctx context.Context, e *kvpb.TenantSett
 	c.metadataMu.serviceMode = mtinfopb.TenantServiceMode(e.ServiceMode)
 	c.metadataMu.clusterInitGracePeriodTS = e.ClusterInitGracePeriodEndTS
 
-	log.Dev.Infof(ctx, "received tenant metadata: name=%q dataState=%v serviceMode=%v clusterInitGracePeriodTS=%s\ncapabilities=%+v",
+	log.Infof(ctx, "received tenant metadata: name=%q dataState=%v serviceMode=%v clusterInitGracePeriodTS=%s\ncapabilities=%+v",
 		c.metadataMu.tenantName, c.metadataMu.dataState, c.metadataMu.serviceMode,
 		timeutil.Unix(c.metadataMu.clusterInitGracePeriodTS, 0), c.metadataMu.capabilities)
 
@@ -253,7 +253,7 @@ func (c *connector) processSettingsEvent(
 		return false, errors.Newf("unknown precedence value %d", e.Precedence)
 	}
 
-	log.Dev.Infof(ctx, "received %d setting overrides with precedence %v (incremental=%v)", len(e.Overrides), e.Precedence, e.Incremental)
+	log.Infof(ctx, "received %d setting overrides with precedence %v (incremental=%v)", len(e.Overrides), e.Precedence, e.Incremental)
 
 	// If the event is not incremental, clear the map.
 	if !e.Incremental {
