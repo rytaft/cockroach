@@ -143,7 +143,7 @@ func bumpClusterVersion(
 	if err := st.Version.SetActiveVersion(ctx, newCV); err != nil {
 		return err
 	}
-	log.Dev.Infof(ctx, "active cluster version setting is now %s (up from %s)",
+	log.Infof(ctx, "active cluster version setting is now %s (up from %s)",
 		newCV.PrettyPrint(), prevCV.PrettyPrint())
 	return nil
 }
@@ -174,7 +174,7 @@ func (m *migrationServer) SyncAllEngines(
 		return nil, err
 	}
 
-	log.Dev.Infof(ctx, "synced %d engines", len(m.server.engines))
+	log.Infof(ctx, "synced %d engines", len(m.server.engines))
 	resp := &serverpb.SyncAllEnginesResponse{}
 	return resp, nil
 }

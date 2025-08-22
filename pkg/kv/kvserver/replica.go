@@ -999,16 +999,6 @@ type Replica struct {
 		// lastTickTimestamp records the timestamp captured before the last tick of
 		// this replica.
 		lastTickTimestamp hlc.ClockTimestamp
-
-		// mmaSpanConfigIsUpToDate tracks whether mma holds an up-to-date SpanConfig
-		// of a range. It starts as false, becomes true once a range message with
-		// up-to-date span config is known to be sent, and resets to false if the
-		// SpanConfig changes or if mma might have dropped the range (specifically,
-		// when the range is not included in the store's leaseholder message either
-		// due to non-leaseholder replica or unknown store). The invariant is that
-		// mma must hold the latest span config of the range when the range messages
-		// is sent to mma.
-		mmaSpanConfigIsUpToDate bool
 	}
 
 	// LeaderlessWatcher is used to signal when a replica is leaderless for a long
@@ -1106,8 +1096,8 @@ func (r *Replica) ReplicaID() roachpb.ReplicaID {
 }
 
 // ID returns the FullReplicaID for the Replica.
-func (r *Replica) ID() roachpb.FullReplicaID {
-	return roachpb.FullReplicaID{RangeID: r.RangeID, ReplicaID: r.replicaID}
+func (r *Replica) ID() storage.FullReplicaID {
+	return storage.FullReplicaID{RangeID: r.RangeID, ReplicaID: r.replicaID}
 }
 
 // LogStorageRaftMuLocked returns the Replica's log storage.
@@ -1175,8 +1165,6 @@ func (r *Replica) SetSpanConfig(conf roachpb.SpanConfig, sp roachpb.Span) bool {
 	r.mu.spanConfigExplicitlySet = true
 	r.mu.confSpan = sp
 	r.store.policyRefresher.EnqueueReplicaForRefresh(r)
-	// Inform mma when the span config changes.
-	(*mmaReplica)(r).markSpanConfigNeedsUpdateLocked()
 	return oldConf.HasConfigurationChange(conf)
 }
 
@@ -1845,9 +1833,6 @@ func (r *Replica) RaftBasicStatus() raft.BasicStatus {
 //
 // NB: This incurs deep copies of Status.Config and Status.Progress.Inflights
 // and is not suitable for use in hot paths. See raftSparseStatusRLocked().
-//
-// TODO(wenyihu6): returning a pointer here incurs an unnecessary heap
-// allocation. We should return raft.Status instead.
 func (r *Replica) raftStatusRLocked() *raft.Status {
 	if rg := r.mu.internalRaftGroup; rg != nil {
 		s := rg.Status()
@@ -1859,9 +1844,6 @@ func (r *Replica) raftStatusRLocked() *raft.Status {
 // raftSparseStatusRLocked returns a sparse Raft status without Config and
 // Progress.Inflights which are expensive to copy, or nil if the Raft group has
 // not been initialized yet. Progress is only populated on the leader.
-//
-// TODO(wenyihu6): returning a pointer here incurs an unnecessary heap
-// allocation. We should return raft.SparseStatus instead.
 func (r *Replica) raftSparseStatusRLocked() *raft.SparseStatus {
 	rg := r.mu.internalRaftGroup
 	if rg == nil {
@@ -2929,17 +2911,7 @@ func (r *Replica) maybeEnqueueProblemRange(
 	// updating metrics.
 	if !isLeaseholder || !leaseValid {
 		// The replicate queue will not process the replica without a valid lease.
-		// Track when we skip enqueuing for these reasons.
-		boolToInt := func(b bool) int {
-			if b {
-				return 1
-			}
-			return 0
-		}
-		reasons := []string{"is not the leaseholder", "the lease is not valid"}
-		reason := reasons[boolToInt(isLeaseholder)]
-		log.KvDistribution.VInfof(ctx, 1, "not enqueuing replica %s because %s", r.Desc(), reason)
-		r.store.metrics.DecommissioningNudgerNotLeaseholderOrInvalidLease.Inc(1)
+		// Nothing to do.
 		return
 	}
 
@@ -2960,19 +2932,8 @@ func (r *Replica) maybeEnqueueProblemRange(
 	// expect a race, however if the value changed underneath us we won't enqueue
 	// the replica as we lost the race.
 	if !r.lastProblemRangeReplicateEnqueueTime.CompareAndSwap(lastTime, now) {
-		// This race condition is expected to be rare.
-		log.KvDistribution.VInfof(ctx, 1, "not enqueuing replica %s due to race: "+
-			"lastProblemRangeReplicateEnqueueTime was updated concurrently", r.Desc())
 		return
 	}
-	// Log at default verbosity to ensure some indication the nudger is working
-	// (other logs have a verbosity of 1 which).
-	log.KvDistribution.Infof(ctx, "decommissioning nudger enqueuing replica %s "+
-		"with priority %f", r.Desc(),
-		allocatorimpl.AllocatorReplaceDecommissioningVoter.Priority())
-	r.store.metrics.DecommissioningNudgerEnqueue.Inc(1)
-	// TODO(dodeca12): Figure out a better way to track the
-	// decommissioning nudger enqueue failures/errors.
 	r.store.replicateQueue.AddAsync(ctx, r,
 		allocatorimpl.AllocatorReplaceDecommissioningVoter.Priority())
 }

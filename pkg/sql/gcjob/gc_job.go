@@ -125,7 +125,7 @@ func deleteTableData(
 	ctx context.Context, cfg *sql.ExecutorConfig, progress *jobspb.SchemaChangeGCProgress,
 ) error {
 	if log.ExpensiveLogEnabled(ctx, 2) {
-		log.Dev.Infof(ctx, "GC is being considered for tables: %+v", progress.Tables)
+		log.Infof(ctx, "GC is being considered for tables: %+v", progress.Tables)
 	}
 	for _, droppedTable := range progress.Tables {
 		var table catalog.TableDescriptor
@@ -437,7 +437,7 @@ func waitForEmptyPrefix(
 	prefix roachpb.Key,
 ) error {
 	if skipWaiting {
-		log.Dev.Infof(ctx, "not waiting for MVCC GC in %v due to testing knob", prefix)
+		log.Infof(ctx, "not waiting for MVCC GC in %v due to testing knob", prefix)
 		return nil
 	}
 	var timer timeutil.Timer
@@ -604,12 +604,12 @@ func waitForWork(
 
 		case <-gossipUpdateC:
 			if log.V(2) {
-				log.Dev.Info(ctx, "received a new system config")
+				log.Info(ctx, "received a new system config")
 			}
 
 		case <-workTimer.Ch():
 			if log.V(2) {
-				log.Dev.Info(ctx, "SchemaChangeGC workTimer triggered")
+				log.Info(ctx, "SchemaChangeGC workTimer triggered")
 			}
 
 		case <-ctx.Done():

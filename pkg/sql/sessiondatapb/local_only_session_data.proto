@@ -689,11 +689,6 @@ message LocalOnlySessionData {
   // PL/pgSQL transaction control statements (COMMIT, ROLLBACK) when the stored
   // procedure is executed via a portal in the extended wire protocol.
   bool use_proc_txn_control_extended_protocol_fix = 175;
-  // EnableScrubJob controls if a job is initiated when the EXPERIMENTAL SCRUB
-  // command is used.
-  bool enable_scrub_job = 176;
-  // AllowViewWithSecurityInvokerClause indicates whether security invoker for views is enabled
-  bool allow_view_with_security_invoker_clause = 177;
   // VectorSearchRerankMultiplier controls how many of the initial search results
   // can be reranked using exact distance calculations with the original
   // full-size vectors. It acts as a multiplier on a base limit derived from the
@@ -728,10 +723,6 @@ message LocalOnlySessionData {
   // then the heuristic applies to all statements (both read-only and
   // mutations), regardless of the table being multi-region.
   bool parallelize_multi_key_lookup_joins_only_on_mr_mutations = 182 [(gogoproto.customname) = "ParallelizeMultiKeyLookupJoinsOnlyOnMRMutations"];
-
-  // AllowUnsafeInternals allows the caller to access the crdb_internal
-  // or system databases within queries.
-  bool allow_unsafe_internals = 183;
 
   ///////////////////////////////////////////////////////////////////////////
   // WARNING: consider whether a session parameter you're adding needs to  //

@@ -199,7 +199,7 @@ func (c *Cache) Start(ctx context.Context) {
 		if err := c.start(ctx); err != nil {
 			log.Warningf(ctx, "failed to warm privileges for virtual tables: %v", err)
 		} else {
-			log.Dev.Infof(ctx, "warmed privileges for virtual tables in %v", timeutil.Since(start))
+			log.Infof(ctx, "warmed privileges for virtual tables in %v", timeutil.Since(start))
 		}
 	}); err != nil {
 		close(c.warmed)

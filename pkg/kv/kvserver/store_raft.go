@@ -283,7 +283,7 @@ func (s *Store) HandleSnapshot(
 		if err != nil && ctx.Err() != nil {
 			// Log trace of incoming snapshot on context cancellation (e.g.
 			// times out or caller goes away).
-			log.Dev.Infof(ctx, "incoming snapshot stream failed with error: %v\ntrace:\n%v",
+			log.Infof(ctx, "incoming snapshot stream failed with error: %v\ntrace:\n%v",
 				err, tracing.SpanFromContext(ctx).GetConfiguredRecording())
 		}
 		return err
@@ -301,7 +301,7 @@ func (s *Store) uncoalesceBeats(
 		return
 	}
 	if log.V(4) {
-		log.Dev.Infof(ctx, "uncoalescing %d beats of type %v: %+v", len(beats), msgT, beats)
+		log.Infof(ctx, "uncoalescing %d beats of type %v: %+v", len(beats), msgT, beats)
 	}
 	beatReqs := make([]kvserverpb.RaftMessageRequest, len(beats))
 	batch := s.scheduler.NewEnqueueBatch()
@@ -331,7 +331,7 @@ func (s *Store) uncoalesceBeats(
 			LaggingFollowersOnQuiesce: beat.LaggingFollowersOnQuiesce,
 		}
 		if log.V(4) {
-			log.Dev.Infof(ctx, "uncoalesced beat: %+v", beatReqs[i])
+			log.Infof(ctx, "uncoalesced beat: %+v", beatReqs[i])
 		}
 
 		enqueue := s.HandleRaftUncoalescedRequest(ctx, &beatReqs[i], respStream)
@@ -421,9 +421,12 @@ func (s *Store) withReplicaForRequest(
 	f func(context.Context, *Replica) *kvpb.Error,
 ) *kvpb.Error {
 	// Lazily create the replica.
-	r, _, err := s.getOrCreateReplica(ctx, roachpb.FullReplicaID{
-		RangeID: req.RangeID, ReplicaID: req.ToReplica.ReplicaID,
-	}, &req.FromReplica)
+	r, _, err := s.getOrCreateReplica(
+		ctx,
+		req.RangeID,
+		req.ToReplica.ReplicaID,
+		&req.FromReplica,
+	)
 	if err != nil {
 		return kvpb.NewError(err)
 	}
@@ -443,7 +446,7 @@ func (s *Store) processRaftRequestWithReplica(
 	defer r.MeasureRaftCPUNanos(grunning.Time())
 
 	if verboseRaftLoggingEnabled() {
-		log.Dev.Infof(ctx, "incoming raft message:\n%s", raft.DescribeMessage(req.Message, raftEntryFormatter))
+		log.Infof(ctx, "incoming raft message:\n%s", raft.DescribeMessage(req.Message, raftEntryFormatter))
 	}
 
 	if req.Message.Type == raftpb.MsgSnap {
@@ -559,7 +562,7 @@ func (s *Store) processRaftSnapshotRequest(
 			// (i.e. follower was able to catch up via the log in the interim) or when
 			// multiple snapshots raced (as is possible when raft leadership changes
 			// and both the old and new leaders send snapshots).
-			log.Dev.Infof(ctx, "ignored stale snapshot at index %d", snapHeader.RaftMessageRequest.Message.Snapshot.Metadata.Index)
+			log.Infof(ctx, "ignored stale snapshot at index %d", snapHeader.RaftMessageRequest.Message.Snapshot.Metadata.Index)
 			s.metrics.RangeSnapshotRecvUnusable.Inc(1)
 		}
 		// If the snapshot was applied and acked with an MsgAppResp, return that
@@ -633,12 +636,14 @@ func (s *Store) HandleRaftResponse(
 				// could be re-added with a higher replicaID, but we want to clear the
 				// replica's data before that happens.
 				if log.V(1) {
-					log.Dev.Infof(ctx, "setting local replica to destroyed due to ReplicaTooOld error")
+					log.Infof(ctx, "setting local replica to destroyed due to ReplicaTooOld error")
 				}
 
 				repl.mu.Unlock()
 				nextReplicaID := tErr.ReplicaID + 1
-				return s.removeReplicaRaftMuLocked(ctx, repl, nextReplicaID, "received ReplicaTooOldError")
+				return s.removeReplicaRaftMuLocked(ctx, repl, nextReplicaID, "received ReplicaTooOldError", RemoveOptions{
+					DestroyData: true,
+				})
 			case *kvpb.RaftGroupDeletedError:
 				if replErr != nil {
 					// RangeNotFoundErrors are expected here; nothing else is.
@@ -763,7 +768,7 @@ func (s *Store) processReady(rangeID roachpb.RangeID) {
 	// processing time means we'll have starved local replicas of ticks and
 	// remote replicas will likely start campaigning.
 	if elapsed >= defaultReplicaRaftMuWarnThreshold {
-		log.Dev.Infof(ctx, "%s; node might be overloaded", stats)
+		log.Infof(ctx, "%s; node might be overloaded", stats)
 	}
 }
 
@@ -1006,7 +1011,7 @@ func (s *Store) updateIOThresholdMap() {
 	// Log whenever the set of overloaded stores changes.
 	shouldLog := log.V(1) || old.seq != cur.seq
 	if shouldLog {
-		log.Dev.Infof(
+		log.Infof(
 			s.AnnotateCtx(context.Background()), "pausable stores: %+v", cur)
 	}
 }
@@ -1088,7 +1093,7 @@ func (s *Store) sendQueuedHeartbeatsToNode(
 	}
 
 	if log.V(4) {
-		log.Dev.Infof(ctx, "sending raft request (coalesced) %+v", chReq)
+		log.Infof(ctx, "sending raft request (coalesced) %+v", chReq)
 	}
 
 	if !s.cfg.Transport.SendAsync(chReq, rpcbase.SystemClass) {

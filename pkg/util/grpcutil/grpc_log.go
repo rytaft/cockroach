@@ -125,7 +125,7 @@ func (l *grpcLogger) InfoDepth(depth int, args ...interface{}) {
 	if !l.shouldLog(severity.INFO, depth) {
 		return
 	}
-	log.Dev.InfofDepth(context.TODO(), depth, "", l.sanitize(args)...)
+	log.InfofDepth(context.TODO(), depth, "", l.sanitize(args)...)
 }
 
 func (l *grpcLogger) WarningDepth(depth int, args ...interface{}) {

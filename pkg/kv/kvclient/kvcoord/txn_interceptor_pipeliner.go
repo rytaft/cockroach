@@ -226,14 +226,9 @@ var rejectTxnMaxCount = settings.RegisterIntSetting(
 // attached to any end transaction request that is passed through the pipeliner
 // to ensure that they the locks within them are released.
 type txnPipeliner struct {
-	st      *cluster.Settings
-	riGen   rangeIteratorFactory // used to condense lock spans, if provided
-	wrapped lockedSender
-	// disabledExplicitly tracks whether the user called txn.DisablePipelining().
-	// This is separate from disabled so that the txnWriteBuffer can enable
-	// pipelining if it has flushed its buffer iff pipelining wasn't previously
-	// explicitly disabled.
-	disabledExplicitly       bool
+	st                       *cluster.Settings
+	riGen                    rangeIteratorFactory // used to condense lock spans, if provided
+	wrapped                  lockedSender
 	disabled                 bool
 	txnMetrics               *TxnMetrics
 	condensedIntentsEveryN   *log.EveryN
@@ -490,10 +485,10 @@ func (tp *txnPipeliner) attachLocksToEndTxn(
 
 	if log.V(3) {
 		for _, intent := range et.LockSpans {
-			log.Dev.Infof(ctx, "intent: [%s,%s)", intent.Key, intent.EndKey)
+			log.Infof(ctx, "intent: [%s,%s)", intent.Key, intent.EndKey)
 		}
 		for _, write := range et.InFlightWrites {
-			log.Dev.Infof(ctx, "in-flight: %d:%s (%s)", write.Sequence, write.Key, write.Strength)
+			log.Infof(ctx, "in-flight: %d:%s (%s)", write.Sequence, write.Key, write.Strength)
 		}
 	}
 	return ba, nil
@@ -590,12 +585,6 @@ func (tp *txnPipeliner) canUseAsyncConsensus(ctx context.Context, ba *kvpb.Batch
 		}
 	}
 	return true
-}
-
-// enableImplicitPipelining enables pipelining unless pipelining was explicitly
-// disabled previously.
-func (tp *txnPipeliner) enableImplicitPipelining() {
-	tp.disabled = tp.disabledExplicitly
 }
 
 // chainToInFlightWrites ensures that we "chain" on to any in-flight writes that

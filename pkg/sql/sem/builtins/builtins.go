@@ -5816,13 +5816,6 @@ SELECT
 		WHERE
 			id = $1 AND id NOT IN (SELECT id FROM system.descriptor)
 	)
-	WHEN 'comment'
-	THEN (
-		SELECT
-			crdb_internal.unsafe_delete_comment(
-				$1
-			)
-	)
 	ELSE NULL
 	END
 `,
@@ -6058,7 +6051,7 @@ SELECT
 					return nil, errors.Newf("expected string value, got %T", args[0])
 				}
 				msg := string(s)
-				log.Dev.Infof(ctx, "crdb_internal.log(): %s", msg)
+				log.Infof(ctx, "crdb_internal.log(): %s", msg)
 				return tree.DVoidDatum, nil
 			},
 			Info:       "This function is used only by CockroachDB's developers for testing purposes.",
@@ -7248,28 +7241,6 @@ SELECT
 			Volatility: volatility.Volatile,
 		},
 	),
-	"crdb_internal.unsafe_delete_comment": makeBuiltin(
-		tree.FunctionProperties{
-			Category:         builtinconstants.CategorySystemRepair,
-			DistsqlBlocklist: true,
-			Undocumented:     true,
-		},
-		tree.Overload{
-			Types: tree.ParamTypes{
-				{Name: "object_id", Typ: types.Int},
-			},
-			ReturnType: tree.FixedReturnType(types.Bool),
-			Fn: func(ctx context.Context, evalCtx *eval.Context, args tree.Datums) (tree.Datum, error) {
-				if err := evalCtx.Planner.UnsafeDeleteComment(ctx, int64(*args[0].(*tree.DInt))); err != nil {
-					return nil, err
-				}
-				return tree.DBoolTrue, nil
-			},
-			Info: "Deletes all system.comments under an object_id, which can be used" +
-				" to clean dangling comments",
-			Volatility: volatility.Volatile,
-		},
-	),
 
 	// Generate some objects.
 	"crdb_internal.generate_test_objects": makeBuiltin(
@@ -7480,7 +7451,7 @@ Parameters:` + randgencfg.ConfigDoc,
 				if ek, ok := storage.DecodeEngineKey(endKey); !ok || ek.Validate() != nil {
 					endKey = storage.EncodeMVCCKey(storage.MVCCKey{Key: endKey})
 				}
-				log.Dev.Infof(ctx, "crdb_internal.compact_engine_span called for nodeID=%d, storeID=%d, range[startKey=%s, endKey=%s]", nodeID, storeID, startKey, endKey)
+				log.Infof(ctx, "crdb_internal.compact_engine_span called for nodeID=%d, storeID=%d, range[startKey=%s, endKey=%s]", nodeID, storeID, startKey, endKey)
 				if err := evalCtx.CompactEngineSpan(
 					ctx, nodeID, storeID, startKey, endKey); err != nil {
 					return nil, err
@@ -9384,30 +9355,6 @@ WHERE object_id = table_descriptor_id
 				)
 				return tree.NewDInt(tree.DInt(jobID)), err
 			},
-		},
-	),
-	"crdb_internal.process_vector_index_fixups": makeBuiltin(
-		tree.FunctionProperties{
-			Category:     builtinconstants.CategoryTesting,
-			Undocumented: true,
-		},
-		tree.Overload{
-			Types: tree.ParamTypes{
-				{Name: "table_id", Typ: types.Int},
-				{Name: "index_id", Typ: types.Int},
-			},
-			ReturnType: tree.FixedReturnType(types.Void),
-			Fn: func(ctx context.Context, evalCtx *eval.Context, args tree.Datums) (tree.Datum, error) {
-				tableID := descpb.ID(tree.MustBeDInt(args[0]))
-				indexID := descpb.IndexID(tree.MustBeDInt(args[1]))
-				err := evalCtx.Planner.ProcessVectorIndexFixups(ctx, tableID, indexID)
-				if err != nil {
-					return nil, err
-				}
-				return tree.DVoidDatum, nil
-			},
-			Info:       "Waits until all outstanding fixups for the vector index with the given ID have been processed.",
-			Volatility: volatility.Volatile,
 		},
 	),
 }

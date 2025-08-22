@@ -485,7 +485,7 @@ func (c *kvEventToRowConsumer) encodeAndEmit(
 		return err
 	}
 	if log.V(3) {
-		log.Dev.Infof(ctx, `r %s: %s(%+v) -> %s`, updatedRow.TableName, keyCopy, headers, valueCopy)
+		log.Infof(ctx, `r %s: %s(%+v) -> %s`, updatedRow.TableName, keyCopy, headers, valueCopy)
 	}
 	return nil
 }

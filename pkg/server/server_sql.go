@@ -121,7 +121,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/util/envutil"
 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
 	"github.com/cockroachdb/cockroach/pkg/util/log"
-	"github.com/cockroachdb/cockroach/pkg/util/log/eventlog"
 	"github.com/cockroachdb/cockroach/pkg/util/metric"
 	"github.com/cockroachdb/cockroach/pkg/util/mon"
 	"github.com/cockroachdb/cockroach/pkg/util/netutil"
@@ -667,7 +666,6 @@ func newSQLServer(ctx context.Context, cfg sqlServerArgs) (*SQLServer, error) {
 	}
 
 	leaseMgr := lease.NewLeaseManager(
-		ctx,
 		cfg.AmbientCtx,
 		cfg.nodeIDContainer,
 		cfg.internalDB,
@@ -679,7 +677,6 @@ func newSQLServer(ctx context.Context, cfg sqlServerArgs) (*SQLServer, error) {
 		lmKnobs,
 		cfg.stopper,
 		cfg.rangeFeedFactory,
-		cfg.monitorAndMetrics.rootSQLMemoryMonitor,
 	)
 	cfg.registry.AddMetricStruct(leaseMgr.MetricsStruct())
 
@@ -1113,9 +1110,6 @@ func newSQLServer(ctx context.Context, cfg sqlServerArgs) (*SQLServer, error) {
 	if ttlKnobs := cfg.TestingKnobs.TTL; ttlKnobs != nil {
 		execCfg.TTLTestingKnobs = ttlKnobs.(*sql.TTLTestingKnobs)
 	}
-	if inspectKnobs := cfg.TestingKnobs.Inspect; inspectKnobs != nil {
-		execCfg.InspectTestingKnobs = inspectKnobs.(*sql.InspectTestingKnobs)
-	}
 	if schemaTelemetryKnobs := cfg.TestingKnobs.SchemaTelemetry; schemaTelemetryKnobs != nil {
 		execCfg.SchemaTelemetryTestingKnobs = schemaTelemetryKnobs.(*sql.SchemaTelemetryTestingKnobs)
 	}
@@ -1123,7 +1117,7 @@ func newSQLServer(ctx context.Context, cfg sqlServerArgs) (*SQLServer, error) {
 		execCfg.SQLStatsTestingKnobs = sqlStatsKnobs.(*sqlstats.TestingKnobs)
 	}
 	if eventlogKnobs := cfg.TestingKnobs.EventLog; eventlogKnobs != nil {
-		execCfg.EventLogTestingKnobs = eventlogKnobs.(*eventlog.EventLogTestingKnobs)
+		execCfg.EventLogTestingKnobs = eventlogKnobs.(*sql.EventLogTestingKnobs)
 	}
 	if telemetryLoggingKnobs := cfg.TestingKnobs.TelemetryLoggingKnobs; telemetryLoggingKnobs != nil {
 		execCfg.TelemetryLoggingTestingKnobs = telemetryLoggingKnobs.(*sql.TelemetryLoggingTestingKnobs)
@@ -1204,7 +1198,6 @@ func newSQLServer(ctx context.Context, cfg sqlServerArgs) (*SQLServer, error) {
 		execCfg.TableStatsCache,
 		stats.DefaultAsOfTime,
 		tableStatsTestingKnobs,
-		execCfg.TenantReadOnly,
 	)
 	execCfg.StatsRefresher = statsRefresher
 	distSQLServer.ServerConfig.StatsRefresher = statsRefresher
@@ -1388,11 +1381,11 @@ func newSQLServer(ctx context.Context, cfg sqlServerArgs) (*SQLServer, error) {
 	startedWithExplicitVModule := log.GetVModule() != ""
 	fn := func(ctx context.Context) {
 		if startedWithExplicitVModule {
-			log.Dev.Infof(ctx, "ignoring vmodule cluster setting due to starting with explicit vmodule flag")
+			log.Infof(ctx, "ignoring vmodule cluster setting due to starting with explicit vmodule flag")
 		} else {
 			s := vmoduleSetting.Get(&cfg.Settings.SV)
 			if log.GetVModule() != s {
-				log.Dev.Infof(ctx, "updating vmodule from cluster setting to %s", s)
+				log.Infof(ctx, "updating vmodule from cluster setting to %s", s)
 				if err := log.SetVModule(s); err != nil {
 					log.Warningf(ctx, "failed to apply vmodule cluster setting: %v", err)
 				}
@@ -1618,7 +1611,7 @@ func (s *SQLServer) preStart(
 	// quiescing doesn't work. Doing it too soon, for example as part of draining,
 	// is potentially dangerous because the server will continue to use the
 	// instance ID for a while.
-	log.Dev.Infof(ctx, "bound sqlinstance: %v", instance)
+	log.Infof(ctx, "bound sqlinstance: %v", instance)
 	if err := s.sqlIDContainer.SetSQLInstanceID(ctx, instance.InstanceID); err != nil {
 		return err
 	}
@@ -1720,7 +1713,7 @@ func (s *SQLServer) preStart(
 		return err
 	}
 
-	log.Dev.Infof(ctx, "done ensuring all necessary startup migrations have run")
+	log.Infof(ctx, "done ensuring all necessary startup migrations have run")
 
 	// Prevent the server from starting if its binary version is too low
 	// for the current tenant cluster version.

@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/kvserverpb"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/kvstorage"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/load"
 	"github.com/cockroachdb/cockroach/pkg/kv/kvserver/stateloader"
@@ -132,22 +131,11 @@ func splitPreApply(
 	}
 
 	// The RHS replica exists and is uninitialized. We are initializing it here.
-	// This is the common case.
-	//
-	// Update the raft HardState with the new Commit index (taken from the
-	// applied state in the write batch), and use existing[*] or default Term
-	// and Vote. Also write the initial RaftTruncatedState.
-	//
-	// [*] Note that uninitialized replicas may cast votes, and if they have, we
-	// can't load the default Term and Vote values.
+	// Update the raft HardState with the new Commit index (taken from the applied
+	// state in the write batch), and use existing or default Term and Vote. This
+	// is the common case.
 	rsl := stateloader.Make(split.RightDesc.RangeID)
 	if err := rsl.SynthesizeRaftState(ctx, readWriter); err != nil {
-		log.Fatalf(ctx, "%v", err)
-	}
-	if err := rsl.SetRaftTruncatedState(ctx, readWriter, &kvserverpb.RaftTruncatedState{
-		Index: stateloader.RaftInitialLogIndex,
-		Term:  stateloader.RaftInitialLogTerm,
-	}); err != nil {
 		log.Fatalf(ctx, "%v", err)
 	}
 	// Persist the closed timestamp.
@@ -328,7 +316,7 @@ func (s *Store) SplitRange(
 
 	// Acquire unreplicated locks on the RHS. We expect locksToAcquireOnRHS to be
 	// empty if UnreplicatedLockReliabilityUpgrade is false.
-	log.Dev.VInfof(ctx, 2, "acquiring %d locks on the RHS", len(locksToAcquireOnRHS))
+	log.VInfof(ctx, 2, "acquiring %d locks on the RHS", len(locksToAcquireOnRHS))
 	for _, l := range locksToAcquireOnRHS {
 		rightRepl.concMgr.OnLockAcquired(ctx, &l)
 	}

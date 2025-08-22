@@ -273,10 +273,8 @@ func (s *Store) throttleSnapshot(
 			if err := ctx.Err(); err != nil {
 				return nil, errors.Wrap(err, "acquiring snapshot reservation")
 			}
-			return nil, errors.Wrapf(
-				queueCtx.Err(),
-				"giving up during snapshot reservation due to cluster setting %q",
-				snapshotReservationQueueTimeoutFraction.Name(),
+			return nil, kvpb.NewSnapshotReservationTimeoutError(
+				queueCtx.Err(), string(snapshotReservationQueueTimeoutFraction.Name()),
 			)
 		case <-s.stopper.ShouldQuiesce():
 			return nil, errors.Errorf("stopped")
@@ -296,7 +294,7 @@ func (s *Store) throttleSnapshot(
 	// NB: this log message is skipped in test builds as many tests do not mock
 	// all of the objects being logged.
 	if elapsed > snapshotReservationWaitWarnThreshold && !buildutil.CrdbTestBuild {
-		log.Dev.Infof(
+		log.Infof(
 			ctx,
 			"waited for %.1fs to acquire snapshot reservation to r%d",
 			elapsed.Seconds(),
@@ -531,7 +529,7 @@ func (s *Store) receiveSnapshot(
 			}
 			return nil
 		}); pErr != nil {
-		log.Dev.Infof(ctx, "cannot accept snapshot: %s", pErr)
+		log.Infof(ctx, "cannot accept snapshot: %s", pErr)
 		return sendSnapshotError(ctx, s, stream, pErr.GoError())
 	}
 
@@ -552,7 +550,7 @@ func (s *Store) receiveSnapshot(
 	}
 
 	ss := &kvBatchSnapshotStrategy{
-		scratch:      s.sstSnapshotStorage.NewScratchSpace(header.State.Desc.RangeID, snapUUID, s.ClusterSettings()),
+		scratch:      s.sstSnapshotStorage.NewScratchSpace(header.State.Desc.RangeID, snapUUID),
 		sstChunkSize: snapshotSSTWriteSyncRate.Get(&s.cfg.Settings.SV),
 		st:           s.ClusterSettings(),
 		clusterID:    s.ClusterID(),
@@ -563,7 +561,7 @@ func (s *Store) receiveSnapshot(
 		return err
 	}
 	if log.V(2) {
-		log.Dev.Infof(ctx, "accepted snapshot reservation for r%d", header.State.Desc.RangeID)
+		log.Infof(ctx, "accepted snapshot reservation for r%d", header.State.Desc.RangeID)
 	}
 
 	comparisonResult := s.getLocalityComparison(header.RaftMessageRequest.FromReplica.NodeID,

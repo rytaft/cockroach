@@ -126,17 +126,19 @@ func filterSpans(includes []roachpb.Span, excludes []roachpb.Span) []roachpb.Spa
 func backup(
 	ctx context.Context,
 	execCtx sql.JobExecContext,
-	details jobspb.BackupDetails,
+	defaultURI string,
+	urisByLocalityKV map[string]string,
 	settings *cluster.Settings,
 	defaultStore cloud.ExternalStorage,
 	storageByLocalityKV map[string]*cloudpb.ExternalStorage,
 	resumer *backupResumer,
 	backupManifest *backuppb.BackupManifest,
 	makeExternalStorage cloud.ExternalStorageFactory,
+	encryption *jobspb.BackupEncryptionOptions,
+	execLocality roachpb.Locality,
 ) (_ roachpb.RowCount, numBackupInstances int, _ error) {
 	resumerSpan := tracing.SpanFromContext(ctx)
 	var lastCheckpoint time.Time
-	encryption := details.EncryptionOptions
 
 	kmsEnv := backupencryption.MakeBackupKMSEnv(
 		execCtx.ExecCfg().Settings,
@@ -168,16 +170,14 @@ func backup(
 	oracle := physicalplan.DefaultReplicaChooser
 	if useBulkOracle.Get(&evalCtx.Settings.SV) {
 		oracle = kvfollowerreadsccl.NewBulkOracle(
-			dsp.ReplicaOracleConfig(evalCtx.Locality),
-			details.ExecutionLocality,
-			kvfollowerreadsccl.StreakConfig{},
+			dsp.ReplicaOracleConfig(evalCtx.Locality), execLocality, kvfollowerreadsccl.StreakConfig{},
 		)
 	}
 
 	// We don't return the compatible nodes here since PartitionSpans will
 	// filter out incompatible nodes.
 	planCtx, _, err := dsp.SetupAllNodesPlanningWithOracle(
-		ctx, evalCtx, execCtx.ExecCfg(), oracle, details.ExecutionLocality,
+		ctx, evalCtx, execCtx.ExecCfg(), oracle, execLocality,
 	)
 	if err != nil {
 		return roachpb.RowCount{}, 0, errors.Wrap(err, "failed to determine nodes on which to run")
@@ -193,8 +193,8 @@ func backup(
 		spans,
 		introducedSpans,
 		pkIDs,
-		details.URI,
-		details.URIsByLocalityKV,
+		defaultURI,
+		urisByLocalityKV,
 		encryption,
 		&kmsEnv,
 		kvpb.MVCCFilter(backupManifest.MVCCFilter),
@@ -317,7 +317,7 @@ func backup(
 				})
 
 				err := backupinfo.WriteBackupManifestCheckpoint(
-					ctx, details.URI, encryption, &kmsEnv, backupManifest, execCtx.ExecCfg(), execCtx.User(),
+					ctx, defaultURI, encryption, &kmsEnv, backupManifest, execCtx.ExecCfg(), execCtx.User(),
 				)
 				if err != nil {
 					log.Errorf(ctx, "unable to checkpoint backup descriptor: %+v", err)
@@ -452,16 +452,6 @@ func backup(
 	statsTable := getTableStatsForBackup(ctx, execCtx.ExecCfg().InternalDB.Executor(), backupManifest.Descriptors)
 	if err := backupinfo.WriteTableStatistics(ctx, defaultStore, encryption, &kmsEnv, &statsTable); err != nil {
 		return roachpb.RowCount{}, 0, err
-	}
-
-	if err := backupdest.WriteBackupIndexMetadata(
-		ctx,
-		execCtx.ExecCfg(),
-		execCtx.User(),
-		execCtx.ExecCfg().DistSQLSrv.ExternalStorageFromURI,
-		details,
-	); err != nil {
-		return roachpb.RowCount{}, 0, errors.Wrapf(err, "writing backup index metadata")
 	}
 
 	return backupManifest.EntryCounts, numBackupInstances, nil
@@ -748,13 +738,16 @@ func (b *backupResumer) Resume(ctx context.Context, execCtx interface{}) error {
 		res, numBackupInstances, err = backup(
 			ctx,
 			p,
-			details,
+			details.URI,
+			details.URIsByLocalityKV,
 			p.ExecCfg().Settings,
 			defaultStore,
 			storageByLocalityKV,
 			b,
 			backupManifest,
 			p.ExecCfg().DistSQLSrv.ExternalStorage,
+			details.EncryptionOptions,
+			details.ExecutionLocality,
 		)
 		if err == nil {
 			break
@@ -796,7 +789,7 @@ func (b *backupResumer) Resume(ctx context.Context, execCtx interface{}) error {
 			// If we made decent progress with the BACKUP, reset the last
 			// progress state.
 			if madeProgress := curProgress - lastProgress; madeProgress >= 0.01 {
-				log.Dev.Infof(ctx, "backport made %d%% progress, resetting retry duration", int(math.Round(float64(100*madeProgress))))
+				log.Infof(ctx, "backport made %d%% progress, resetting retry duration", int(math.Round(float64(100*madeProgress))))
 				lastProgress = curProgress
 				r.Reset()
 			}
@@ -1364,7 +1357,7 @@ func maybeRelocateJobExecution(
 			return err
 		}
 		if ok, missedTier := current.Locality.Matches(locality); !ok {
-			log.Dev.Infof(ctx,
+			log.Infof(ctx,
 				"%s job %d initially adopted on instance %d but it does not match locality filter %s, finding a new coordinator",
 				jobDesc, jobID, current.NodeID, missedTier.String(),
 			)

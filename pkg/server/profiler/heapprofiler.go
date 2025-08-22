@@ -71,7 +71,7 @@ func NewHeapProfiler(ctx context.Context, dir string, st *cluster.Settings) (*He
 		),
 	}
 
-	log.Dev.Infof(ctx,
+	log.Infof(ctx,
 		"writing go heap profiles to %s at least every %s", log.SafeManaged(dir), hp.resetInterval())
 
 	return hp, nil

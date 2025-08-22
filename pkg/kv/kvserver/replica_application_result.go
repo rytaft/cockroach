@@ -220,7 +220,7 @@ func (r *Replica) prepareLocalResult(ctx context.Context, cmd *replicatedCmd) {
 				//
 				// For proposed simplifications, see:
 				// https://github.com/cockroachdb/cockroach/issues/97633
-				log.Dev.Infof(ctx, "failed to repropose %s at idx %d with new lease index: %s", cmd.ID, cmd.Index(), pErr)
+				log.Infof(ctx, "failed to repropose %s at idx %d with new lease index: %s", cmd.ID, cmd.Index(), pErr)
 				// TODO(repl): we're replacing an error (illegal LAI) here with another error.
 				// A pattern where the error is assigned exactly once would be simpler to
 				// reason about. In particular, we want to make sure we never replace an
@@ -677,7 +677,7 @@ func (r *Replica) handleChangeReplicasResult(
 	// removal pending at this point then we know that this command must be
 	// responsible.
 	if log.V(1) {
-		log.Dev.Infof(ctx, "removing replica due to ChangeReplicasTrigger: %v", chng)
+		log.Infof(ctx, "removing replica due to ChangeReplicasTrigger: %v", chng)
 	}
 
 	// This is currently executed before the conf change is applied to the Raft
@@ -698,7 +698,7 @@ func (r *Replica) handleChangeReplicasResult(
 	// NB: postDestroyRaftMuLocked requires that the batch which removed the data
 	// be durably synced to disk, which we have.
 	// See replicaAppBatch.ApplyToStateMachine().
-	if err := r.postDestroyRaftMuLocked(ctx); err != nil {
+	if err := r.postDestroyRaftMuLocked(ctx, r.GetMVCCStats()); err != nil {
 		log.Fatalf(ctx, "failed to run Replica postDestroy: %v", err)
 	}
 

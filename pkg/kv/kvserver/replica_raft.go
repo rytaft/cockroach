@@ -96,8 +96,6 @@ var ReplicaLeaderlessUnavailableThreshold = settings.RegisterDurationSettingWith
 //     terminate execution, although it is given no guarantee that the proposal
 //     won't still go on to commit and apply at some later time.
 //   - the proposal's ID.
-//   - the bytes that will be written by the replica during the application of
-//     the Raft command.
 //   - any error obtained during the creation or proposal of the command, in
 //     which case the other returned values are zero.
 func (r *Replica) evalAndPropose(
@@ -423,7 +421,7 @@ func (r *Replica) propose(
 		log.VEvent(p.Context(), 4, "sideloadable proposal detected")
 		r.store.metrics.AddSSTableProposals.Inc(1)
 	} else if log.V(4) {
-		log.Dev.Infof(p.Context(), "proposing command %x: %s", p.idKey, p.Request.Summary())
+		log.Infof(p.Context(), "proposing command %x: %s", p.idKey, p.Request.Summary())
 	}
 
 	raftAdmissionMeta := p.raftAdmissionMeta
@@ -450,7 +448,7 @@ func (r *Replica) propose(
 	// Too verbose even for verbose logging, so manually enable if you want to
 	// debug proposal sizes.
 	if false {
-		log.Dev.Infof(p.Context(), `%s: proposal: %d
+		log.Infof(p.Context(), `%s: proposal: %d
   RaftCommand.ReplicatedEvalResult:          %d
   RaftCommand.ReplicatedEvalResult.Delta:    %d
   RaftCommand.WriteBatch:                    %d
@@ -823,9 +821,6 @@ func (s handleRaftReadyStats) SafeFormat(p redact.SafePrinter, _ rune) {
 			p.Printf(" (copies=%d)", c)
 		}
 	}
-	if b := s.apply.numWriteAndIngestedBytes; b > 0 {
-		p.Printf(", apply-write-bytes=%s", humanizeutil.IBytes(b))
-	}
 	p.SafeString("]")
 
 	if n := s.apply.assertionsRequested; n > 0 {
@@ -1112,7 +1107,7 @@ func (r *Replica) handleRaftReadyRaftMuLocked(
 			// indicating a newly elected leader or a conf change. Replay protection
 			// prevents any corruption, so the waste is only a performance issue.
 			if log.V(3) {
-				log.Dev.Infof(ctx, "raft leader changed: %d -> %d", leaderID, hs.Lead)
+				log.Infof(ctx, "raft leader changed: %d -> %d", leaderID, hs.Lead)
 			}
 			if !r.store.TestingKnobs().DisableRefreshReasonNewLeader {
 				refreshReason = reasonNewLeader
@@ -1681,7 +1676,7 @@ func (r *Replica) refreshProposalsLocked(
 		return
 	}
 
-	log.Dev.VInfof(ctx, 2,
+	log.VInfof(ctx, 2,
 		"pending commands: reproposing %d (at applied index %d, lease applied index %d) %s",
 		len(reproposals), r.shMu.state.RaftAppliedIndex,
 		r.shMu.state.LeaseAppliedIndex, reason)
@@ -1754,7 +1749,7 @@ func (r *Replica) maybeCoalesceHeartbeat(
 		LaggingFollowersOnQuiesceAccurate: quiesce,
 	}
 	if log.V(4) {
-		log.Dev.Infof(ctx, "coalescing beat: %+v", beat)
+		log.Infof(ctx, "coalescing beat: %+v", beat)
 	}
 	toStore := roachpb.StoreIdent{
 		StoreID: toReplica.StoreID,
@@ -1786,7 +1781,7 @@ func (r *replicaSyncCallback) OnLogSync(
 
 	r.store.metrics.RaftLogCommitLatency.RecordValue(stats.CommitDur.Nanoseconds())
 	if stats.TotalDuration > defaultReplicaRaftMuWarnThreshold {
-		log.Dev.Infof(repl.raftCtx, "slow non-blocking raft commit: %s", stats.BatchCommitStats)
+		log.Infof(repl.raftCtx, "slow non-blocking raft commit: %s", stats.BatchCommitStats)
 	}
 }
 
@@ -2050,7 +2045,7 @@ func (r *Replica) sendRaftMessageRequest(
 	ctx context.Context, req *kvserverpb.RaftMessageRequest,
 ) bool {
 	if log.V(4) {
-		log.Dev.Infof(ctx, "sending raft request %+v", req)
+		log.Infof(ctx, "sending raft request %+v", req)
 	}
 	return r.store.cfg.Transport.SendAsync(req, r.connectionClass.get())
 }
@@ -2822,10 +2817,9 @@ func (r *Replica) acquireSplitLock(
 	ctx context.Context, split *roachpb.SplitTrigger,
 ) (func(), error) {
 	rightReplDesc, _ := split.RightDesc.GetReplicaDescriptor(r.StoreID())
-	rightRepl, _, err := r.store.getOrCreateReplica(ctx, roachpb.FullReplicaID{
-		RangeID:   split.RightDesc.RangeID,
-		ReplicaID: rightReplDesc.ReplicaID,
-	}, nil /* creatingReplica */)
+	rightRepl, _, err := r.store.getOrCreateReplica(
+		ctx, split.RightDesc.RangeID, rightReplDesc.ReplicaID, nil, /* creatingReplica */
+	)
 	// If getOrCreateReplica returns RaftGroupDeletedError we know that the RHS
 	// has already been removed. This case is handled properly in splitPostApply.
 	if errors.HasType(err, (*kvpb.RaftGroupDeletedError)(nil)) {
@@ -2858,10 +2852,9 @@ func (r *Replica) acquireMergeLock(
 	// complete, after which the replica will realize it has been destroyed and
 	// reject the snapshot.
 	rightReplDesc, _ := merge.RightDesc.GetReplicaDescriptor(r.StoreID())
-	rightRepl, _, err := r.store.getOrCreateReplica(ctx, roachpb.FullReplicaID{
-		RangeID:   merge.RightDesc.RangeID,
-		ReplicaID: rightReplDesc.ReplicaID,
-	}, nil /* creatingReplica */)
+	rightRepl, _, err := r.store.getOrCreateReplica(
+		ctx, merge.RightDesc.RangeID, rightReplDesc.ReplicaID, nil, /* creatingReplica */
+	)
 	if err != nil {
 		return nil, err
 	}

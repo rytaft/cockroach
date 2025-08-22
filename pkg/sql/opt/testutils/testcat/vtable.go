@@ -135,7 +135,6 @@ var systemTables = []string{
 	systemschema.StatementExecutionStatsTableSchema,
 	systemschema.TableMetadataTableSchema,
 	systemschema.PreparedTransactionsTableSchema,
-	systemschema.InspectErrorsTableSchema,
 }
 
 func init() {

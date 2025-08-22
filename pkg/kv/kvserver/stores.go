@@ -258,7 +258,7 @@ func (ls *Stores) ReadBootstrapInfo(bi *gossip.BootstrapInfo) error {
 	if err != nil {
 		return err
 	}
-	log.Dev.Infof(ctx, "read %d node addresses from persistent storage", len(bi.Addresses))
+	log.Infof(ctx, "read %d node addresses from persistent storage", len(bi.Addresses))
 
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
@@ -277,7 +277,7 @@ func (ls *Stores) WriteBootstrapInfo(bi *gossip.BootstrapInfo) error {
 		return err
 	}
 	ctx := ls.AnnotateCtx(context.TODO())
-	log.Dev.Infof(ctx, "wrote %d node addresses to persistent storage", len(bi.Addresses))
+	log.Infof(ctx, "wrote %d node addresses to persistent storage", len(bi.Addresses))
 	return nil
 }
 
@@ -334,19 +334,4 @@ func (ls *Stores) GetStoreMetricRegistry(storeID roachpb.StoreID) *metric.Regist
 		return s.Registry()
 	}
 	return nil
-}
-
-// GetAggregatedStoreStats returns the aggregated cpu usage across all stores and
-// the count of stores.
-func (ls *Stores) GetAggregatedStoreStats(useCached bool) (storesCPURate int64, numStores int32) {
-	_ = ls.VisitStores(func(s *Store) error {
-		c, err := s.Capacity(context.Background(), useCached)
-		if err != nil {
-			panic(err)
-		}
-		storesCPURate += int64(c.CPUPerSecond)
-		numStores++
-		return nil
-	})
-	return storesCPURate, numStores
 }

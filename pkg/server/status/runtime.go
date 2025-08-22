@@ -67,12 +67,6 @@ var (
 		Measurement: "Memory",
 		Unit:        metric.Unit_BYTES,
 	}
-	metaGoLimitBytes = metric.Metadata{
-		Name:        "sys.go.limitbytes",
-		Help:        "Go soft memory limit",
-		Measurement: "Memory",
-		Unit:        metric.Unit_BYTES,
-	}
 	metaGoMemStackSysBytes = metric.Metadata{
 		Name:        "sys.go.stack.systembytes",
 		Help:        "Stack memory obtained from the OS.",
@@ -597,9 +591,6 @@ const runtimeMetricMemStackOSBytes = "/memory/classes/os-stacks:bytes"
 // metrics in /memory/classes.
 const runtimeMetricGoTotal = "/memory/classes/total:bytes"
 
-// Current soft memory limit (see debug.SetMemoryLimit).
-const runtimeMetricGoLimit = "/gc/gomemlimit:bytes"
-
 // Count of all completed GC cycles.
 const runtimeMetricGCCount = "/gc/cycles/total:gc-cycles"
 
@@ -607,7 +598,6 @@ var runtimeMetrics = []string{
 	runtimeMetricGCAssist,
 	runtimeMetricGoTotal,
 	runtimeMetricHeapAlloc,
-	runtimeMetricGoLimit,
 	runtimeMetricHeapFragmentBytes,
 	runtimeMetricHeapReservedBytes,
 	runtimeMetricHeapReleasedBytes,
@@ -784,7 +774,6 @@ type RuntimeStatSampler struct {
 	RunnableGoroutinesPerCPU *metric.GaugeFloat64
 	GoAllocBytes             *metric.Gauge
 	GoTotalBytes             *metric.Gauge
-	GoLimitBytes             *metric.Gauge
 	GoMemStackSysBytes       *metric.Gauge
 	GoHeapFragmentBytes      *metric.Gauge
 	GoHeapReservedBytes      *metric.Gauge
@@ -886,7 +875,6 @@ func NewRuntimeStatSampler(ctx context.Context, clock hlc.WallClock) *RuntimeSta
 		RunnableGoroutinesPerCPU: metric.NewGaugeFloat64(metaRunnableGoroutinesPerCPU),
 		GoAllocBytes:             metric.NewGauge(metaGoAllocBytes),
 		GoTotalBytes:             metric.NewGauge(metaGoTotalBytes),
-		GoLimitBytes:             metric.NewGauge(metaGoLimitBytes),
 		GoMemStackSysBytes:       metric.NewGauge(metaGoMemStackSysBytes),
 		GoHeapFragmentBytes:      metric.NewGauge(metaGoHeapFragmentBytes),
 		GoHeapReservedBytes:      metric.NewGauge(metaGoHeapReservedBytes),
@@ -1011,7 +999,7 @@ func (rsr *RuntimeStatSampler) SampleEnvironment(ctx context.Context, cs *CGoMem
 	if err != nil {
 		log.Ops.Errorf(ctx, "unable to get process CPU usage: %v", err)
 	}
-	cpuCapacity := GetCPUCapacity()
+	cpuCapacity := getCPUCapacity()
 	cpuUsageStats, err := cpu.Times(false /* percpu */)
 	if err != nil {
 		log.Ops.Errorf(ctx, "unable to get system CPU usage: %v", err)
@@ -1148,10 +1136,6 @@ func (rsr *RuntimeStatSampler) SampleEnvironment(ctx context.Context, cs *CGoMem
 	goAlloc := rsr.goRuntimeSampler.uint64(runtimeMetricHeapAlloc)
 	goTotal := rsr.goRuntimeSampler.uint64(runtimeMetricGoTotal) -
 		rsr.goRuntimeSampler.uint64(runtimeMetricHeapReleasedBytes)
-	goLimit := rsr.goRuntimeSampler.uint64(runtimeMetricGoLimit)
-	if goLimit == math.MaxInt64 {
-		goLimit = 0
-	}
 	stackTotal := rsr.goRuntimeSampler.uint64(runtimeMetricMemStackHeapBytes) +
 		osStackBytes
 	heapFragmentBytes := rsr.goRuntimeSampler.uint64(runtimeMetricHeapFragmentBytes)
@@ -1163,7 +1147,6 @@ func (rsr *RuntimeStatSampler) SampleEnvironment(ctx context.Context, cs *CGoMem
 		MemStackSysBytes:  stackTotal,
 		GoAllocBytes:      goAlloc,
 		GoTotalBytes:      goTotal,
-		GoLimitBytes:      goLimit,
 		HeapFragmentBytes: heapFragmentBytes,
 		HeapReservedBytes: heapReservedBytes,
 		HeapReleasedBytes: heapReleasedBytes,
@@ -1185,7 +1168,6 @@ func (rsr *RuntimeStatSampler) SampleEnvironment(ctx context.Context, cs *CGoMem
 
 	rsr.GoAllocBytes.Update(int64(goAlloc))
 	rsr.GoTotalBytes.Update(int64(goTotal))
-	rsr.GoLimitBytes.Update(int64(goLimit))
 	rsr.GoMemStackSysBytes.Update(int64(osStackBytes))
 	rsr.GoHeapFragmentBytes.Update(int64(heapFragmentBytes))
 	rsr.GoHeapReservedBytes.Update(int64(heapReservedBytes))
@@ -1329,7 +1311,7 @@ func getSummedNetStats(ctx context.Context) (netCounters, error) {
 	}
 
 	if log.V(3) {
-		log.Dev.Infof(ctx, "tcp stats: Tcp: %+v TcpExt: %+v", mTCP, mTCPExt)
+		log.Infof(ctx, "tcp stats: Tcp: %+v TcpExt: %+v", mTCP, mTCPExt)
 	}
 
 	return netCounters{
@@ -1503,10 +1485,10 @@ func GetProcCPUTime(ctx context.Context) (userTimeMillis, sysTimeMillis int64, e
 	return int64(cpuTime.User), int64(cpuTime.Sys), nil
 }
 
-// GetCPUCapacity returns the number of logical CPU processors available for
+// getCPUCapacity returns the number of logical CPU processors available for
 // use by the process. The capacity accounts for cgroup constraints, GOMAXPROCS
-// and the number of host –processors.
-func GetCPUCapacity() float64 {
+// and the number of host processors.
+func getCPUCapacity() float64 {
 	numProcs := float64(runtime.GOMAXPROCS(0 /* read only */))
 	cgroupCPU, err := cgroups.GetCgroupCPU()
 	if err != nil {

@@ -142,13 +142,10 @@ func buildInitialState(
 		// or not, we build the conditions using an in-memory engine for
 		// performance.
 		buildFS = vfs.NewMem()
-		settings := cluster.MakeClusterSettings()
-		env, err := fs.InitEnv(ctx, buildFS, "", fs.EnvConfig{
-			Version: settings.Version,
-		}, nil /* statsCollector */)
+		env, err := fs.InitEnv(ctx, buildFS, "", fs.EnvConfig{}, nil /* statsCollector */)
 		require.NoError(b, err)
 
-		e, err := Open(ctx, env, settings, opts...)
+		e, err := Open(ctx, env, cluster.MakeClusterSettings(), opts...)
 		require.NoError(b, err)
 		require.NoError(b, initial.Build(ctx, b, e))
 		e.Close()
@@ -371,7 +368,7 @@ func (d mvccBenchData) Build(ctx context.Context, b *testing.B, eng Engine) erro
 		// optimizations which change the data size result in the same number of
 		// sstables.
 		if scaled := len(order) / 20; i > 0 && (i%scaled) == 0 {
-			log.Dev.Infof(ctx, "committing (%d/~%d)", i/scaled, 20)
+			log.Infof(ctx, "committing (%d/~%d)", i/scaled, 20)
 			if err := batch.Commit(false /* sync */); err != nil {
 				return err
 			}
@@ -515,7 +512,7 @@ func (i mvccImportedData) writeLayer(
 		// optimizations which change the data size result in the same number of
 		// sstables.
 		if scaled := len(keys) / 20; idx > 0 && (idx%scaled) == 0 {
-			log.Dev.Infof(ctx, "committing (%d/~%d)", idx/scaled, 20)
+			log.Infof(ctx, "committing (%d/~%d)", idx/scaled, 20)
 			if err := batch.Commit(false /* sync */); err != nil {
 				return err
 			}

@@ -85,28 +85,6 @@ layers:
       derivative: NONE
       how_to_use: Changefeeds use protected timestamps to protect the data from being garbage collected. Ensure the protected timestamp age does not significantly exceed the GC TTL zone configuration. Alert on this metric if the protected timestamp age is greater than 3 times the GC TTL.
       essential: true
-  - name: CROSS_CLUSTER_REPLICATION
-    metrics:
-    - name: physical_replication.logical_bytes
-      exported_name: physical_replication_logical_bytes
-      description: Logical bytes (sum of keys + values) ingested by all replication jobs
-      y_axis_label: Bytes
-      type: COUNTER
-      unit: BYTES
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: Track PCR throughput
-      essential: true
-    - name: physical_replication.replicated_time_seconds
-      exported_name: physical_replication_replicated_time_seconds
-      description: The replicated time of the physical replication stream in seconds since the unix epoch.
-      y_axis_label: Seconds
-      type: GAUGE
-      unit: SECONDS
-      aggregation: AVG
-      derivative: NONE
-      how_to_use: Track replication lag via current time - physical_replication.replicated_time_seconds
-      essential: true
   - name: DISTRIBUTED
     metrics:
     - name: distsender.errors.notleaseholder
@@ -129,58 +107,6 @@ layers:
       derivative: NON_NEGATIVE_DERIVATIVE
       how_to_use: RPC errors do not necessarily indicate a problem. This metric tracks remote procedure calls that return a status value other than "success". A non-success status of an RPC should not be misconstrued as a network transport issue. It is database code logic executed on another cluster node. The non-success status is a result of an orderly execution of an RPC that reports a specific logical condition.
       essential: true
-  - name: LOGICAL_DATA_REPLICATION
-    metrics:
-    - name: logical_replication.commit_latency
-      exported_name: logical_replication_commit_latency
-      description: 'Event commit latency: a difference between event MVCC timestamp and the time it was flushed into disk. If we batch events, then the difference between the oldest event in the batch and flush is recorded'
-      y_axis_label: Nanoseconds
-      type: HISTOGRAM
-      unit: NANOSECONDS
-      aggregation: AVG
-      derivative: NONE
-      how_to_use: track the latency of of applying events from source to destination
-      essential: true
-    - name: logical_replication.events_dlqed
-      exported_name: logical_replication_events_dlqed
-      description: Row update events sent to DLQ
-      y_axis_label: Failures
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: track events sent to the dead letter queue
-      essential: true
-    - name: logical_replication.events_ingested
-      exported_name: logical_replication_events_ingested
-      description: Events ingested by all replication jobs
-      y_axis_label: Events
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: track events (e.g. updates, deletes, inserts) ingested
-      essential: true
-    - name: logical_replication.logical_bytes
-      exported_name: logical_replication_logical_bytes
-      description: Logical bytes (sum of keys + values) received by all replication jobs
-      y_axis_label: Bytes
-      type: COUNTER
-      unit: BYTES
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: track logical data replication throughput
-      essential: true
-    - name: logical_replication.replicated_time_seconds
-      exported_name: logical_replication_replicated_time_seconds
-      description: The replicated time of the logical replication stream in seconds since the unix epoch.
-      y_axis_label: Seconds
-      type: GAUGE
-      unit: SECONDS
-      aggregation: AVG
-      derivative: NONE
-      how_to_use: Track replication lag via current time - logical_replication.replicated_time_seconds
-      essential: true
   - name: NETWORKING
     metrics:
     - name: clock-offset.meannanos
@@ -197,10 +123,6 @@ layers:
       exported_name: rpc_connection_avg_round_trip_latency
       description: |
         Sum of exponentially weighted moving average of round-trip latencies, as measured through a gRPC RPC.
-
-        Since this metric is based on gRPC RPCs, it is affected by application-level
-        processing delays and CPU overload effects. See rpc.connection.tcp_rtt for a
-        metric that is obtained from the kernel's TCP stack.
 
         Dividing this Gauge by rpc.connection.healthy gives an approximation of average
         latency, but the top-level round-trip-latency histogram is more useful. Instead,
@@ -268,40 +190,6 @@ layers:
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
       how_to_use: See Description.
-      essential: true
-    - name: rpc.connection.tcp_rtt
-      exported_name: rpc_connection_tcp_rtt
-      description: |
-        Kernel-level TCP round-trip time as measured by the Linux TCP stack.
-
-        This metric reports the smoothed round-trip time (SRTT) as maintained by the
-        kernel's TCP implementation. Unlike application-level RPC latency measurements,
-        this reflects pure network latency and is less affected by CPU overload effects.
-
-        This metric is only available on Linux.
-      y_axis_label: Latency
-      type: GAUGE
-      unit: NANOSECONDS
-      aggregation: AVG
-      derivative: NONE
-      how_to_use: High TCP RTT values indicate network issues outside of CockroachDB that could be impacting the user's workload.
-      essential: true
-    - name: rpc.connection.tcp_rtt_var
-      exported_name: rpc_connection_tcp_rtt_var
-      description: |
-        Kernel-level TCP round-trip time variance as measured by the Linux TCP stack.
-
-        This metric reports the smoothed round-trip time variance (RTTVAR) as maintained
-        by the kernel's TCP implementation. This measures the stability of the
-        connection latency.
-
-        This metric is only available on Linux.
-      y_axis_label: Latency Variance
-      type: GAUGE
-      unit: NANOSECONDS
-      aggregation: AVG
-      derivative: NONE
-      how_to_use: High TCP RTT variance values indicate network stability issues outside of CockroachDB that could be impacting the user's workload.
       essential: true
     - name: rpc.connection.unhealthy
       exported_name: rpc_connection_unhealthy
@@ -571,166 +459,6 @@ layers:
       derivative: NON_NEGATIVE_DERIVATIVE
       how_to_use: The rate of this metric shows how frequently new connections are being established. This can be useful in determining if a high rate of incoming new connections is causing additional load on the server due to a misconfigured application.
       essential: true
-    - name: sql.routine.delete.count
-      exported_name: sql_routine_delete_count
-      labeled_name: 'sql.count{query_type: routine-delete}'
-      description: Number of SQL DELETE statements successfully executed within routine invocation
-      y_axis_label: SQL Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: This high-level metric reflects workload volume. Monitor this metric to identify abnormal application behavior or patterns over time. If abnormal patterns emerge, apply the metric's time range to the SQL Activity pages to investigate interesting outliers or patterns. For example, on the Transactions page and the Statements page, sort on the Execution Count column. To find problematic sessions, on the Sessions page, sort on the Transaction Count column. Find the sessions with high transaction counts and trace back to a user or application.
-      essential: true
-    - name: sql.routine.delete.count.internal
-      exported_name: sql_routine_delete_count_internal
-      labeled_name: 'sql.count{query_type: routine-delete, query_internal: true}'
-      description: Number of SQL DELETE statements successfully executed within routine invocation (internal queries)
-      y_axis_label: SQL Internal Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.routine.delete.started.count
-      exported_name: sql_routine_delete_started_count
-      labeled_name: 'sql.count{query_type: routine-started-delete}'
-      description: Number of SQL DELETE statements started within routine invocation
-      y_axis_label: SQL Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: This high-level metric reflects workload volume. Monitor this metric to identify abnormal application behavior or patterns over time. If abnormal patterns emerge, apply the metric's time range to the SQL Activity pages to investigate interesting outliers or patterns. For example, on the Transactions page and the Statements page, sort on the Execution Count column. To find problematic sessions, on the Sessions page, sort on the Transaction Count column. Find the sessions with high transaction counts and trace back to a user or application.
-      essential: true
-    - name: sql.routine.delete.started.count.internal
-      exported_name: sql_routine_delete_started_count_internal
-      labeled_name: 'sql.count{query_type: routine-started-delete, query_internal: true}'
-      description: Number of SQL DELETE statements started within routine invocation (internal queries)
-      y_axis_label: SQL Internal Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.routine.insert.count
-      exported_name: sql_routine_insert_count
-      labeled_name: 'sql.count{query_type: routine-insert}'
-      description: Number of SQL INSERT statements successfully executed within routine invocation
-      y_axis_label: SQL Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: This high-level metric reflects workload volume. Monitor this metric to identify abnormal application behavior or patterns over time. If abnormal patterns emerge, apply the metric's time range to the SQL Activity pages to investigate interesting outliers or patterns. For example, on the Transactions page and the Statements page, sort on the Execution Count column. To find problematic sessions, on the Sessions page, sort on the Transaction Count column. Find the sessions with high transaction counts and trace back to a user or application.
-      essential: true
-    - name: sql.routine.insert.count.internal
-      exported_name: sql_routine_insert_count_internal
-      labeled_name: 'sql.count{query_type: routine-insert, query_internal: true}'
-      description: Number of SQL INSERT statements successfully executed within routine invocation (internal queries)
-      y_axis_label: SQL Internal Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.routine.insert.started.count
-      exported_name: sql_routine_insert_started_count
-      labeled_name: 'sql.count{query_type: routine-started-insert}'
-      description: Number of SQL INSERT statements started within routine invocation
-      y_axis_label: SQL Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: This high-level metric reflects workload volume. Monitor this metric to identify abnormal application behavior or patterns over time. If abnormal patterns emerge, apply the metric's time range to the SQL Activity pages to investigate interesting outliers or patterns. For example, on the Transactions page and the Statements page, sort on the Execution Count column. To find problematic sessions, on the Sessions page, sort on the Transaction Count column. Find the sessions with high transaction counts and trace back to a user or application.
-      essential: true
-    - name: sql.routine.insert.started.count.internal
-      exported_name: sql_routine_insert_started_count_internal
-      labeled_name: 'sql.count{query_type: routine-started-insert, query_internal: true}'
-      description: Number of SQL INSERT statements started within routine invocation (internal queries)
-      y_axis_label: SQL Internal Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.routine.select.count
-      exported_name: sql_routine_select_count
-      labeled_name: 'sql.count{query_type: routine-select}'
-      description: Number of SQL SELECT statements successfully executed within routine invocation
-      y_axis_label: SQL Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: This high-level metric reflects workload volume. Monitor this metric to identify abnormal application behavior or patterns over time. If abnormal patterns emerge, apply the metric's time range to the SQL Activity pages to investigate interesting outliers or patterns. For example, on the Transactions page and the Statements page, sort on the Execution Count column. To find problematic sessions, on the Sessions page, sort on the Transaction Count column. Find the sessions with high transaction counts and trace back to a user or application.
-      essential: true
-    - name: sql.routine.select.count.internal
-      exported_name: sql_routine_select_count_internal
-      labeled_name: 'sql.count{query_type: routine-select, query_internal: true}'
-      description: Number of SQL SELECT statements successfully executed within routine invocation (internal queries)
-      y_axis_label: SQL Internal Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.routine.select.started.count
-      exported_name: sql_routine_select_started_count
-      labeled_name: 'sql.count{query_type: routine-started-select}'
-      description: Number of SQL SELECT statements started within routine invocation
-      y_axis_label: SQL Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: This high-level metric reflects workload volume. Monitor this metric to identify abnormal application behavior or patterns over time. If abnormal patterns emerge, apply the metric's time range to the SQL Activity pages to investigate interesting outliers or patterns. For example, on the Transactions page and the Statements page, sort on the Execution Count column. To find problematic sessions, on the Sessions page, sort on the Transaction Count column. Find the sessions with high transaction counts and trace back to a user or application.
-      essential: true
-    - name: sql.routine.select.started.count.internal
-      exported_name: sql_routine_select_started_count_internal
-      labeled_name: 'sql.count{query_type: routine-started-select, query_internal: true}'
-      description: Number of SQL SELECT statements started within routine invocation (internal queries)
-      y_axis_label: SQL Internal Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.routine.update.count
-      exported_name: sql_routine_update_count
-      labeled_name: 'sql.count{query_type: routine-update}'
-      description: Number of SQL UPDATE statements successfully executed within routine invocation
-      y_axis_label: SQL Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: This high-level metric reflects workload volume. Monitor this metric to identify abnormal application behavior or patterns over time. If abnormal patterns emerge, apply the metric's time range to the SQL Activity pages to investigate interesting outliers or patterns. For example, on the Transactions page and the Statements page, sort on the Execution Count column. To find problematic sessions, on the Sessions page, sort on the Transaction Count column. Find the sessions with high transaction counts and trace back to a user or application.
-      essential: true
-    - name: sql.routine.update.count.internal
-      exported_name: sql_routine_update_count_internal
-      labeled_name: 'sql.count{query_type: routine-update, query_internal: true}'
-      description: Number of SQL UPDATE statements successfully executed within routine invocation (internal queries)
-      y_axis_label: SQL Internal Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.routine.update.started.count
-      exported_name: sql_routine_update_started_count
-      labeled_name: 'sql.count{query_type: routine-started-update}'
-      description: Number of SQL UPDATE statements started within routine invocation
-      y_axis_label: SQL Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-      how_to_use: This high-level metric reflects workload volume. Monitor this metric to identify abnormal application behavior or patterns over time. If abnormal patterns emerge, apply the metric's time range to the SQL Activity pages to investigate interesting outliers or patterns. For example, on the Transactions page and the Statements page, sort on the Execution Count column. To find problematic sessions, on the Sessions page, sort on the Transaction Count column. Find the sessions with high transaction counts and trace back to a user or application.
-      essential: true
-    - name: sql.routine.update.started.count.internal
-      exported_name: sql_routine_update_started_count_internal
-      labeled_name: 'sql.count{query_type: routine-started-update, query_internal: true}'
-      description: Number of SQL UPDATE statements started within routine invocation (internal queries)
-      y_axis_label: SQL Internal Statements
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
     - name: sql.select.count
       exported_name: sql_select_count
       labeled_name: 'sql.count{query_type: select}'
@@ -1483,7 +1211,7 @@ layers:
     - name: changefeed.checkpoint_hist_nanos
       exported_name: changefeed_checkpoint_hist_nanos
       description: Time spent checkpointing changefeed progress
-      y_axis_label: Nanoseconds
+      y_axis_label: Changefeeds
       type: HISTOGRAM
       unit: NANOSECONDS
       aggregation: AVG
@@ -1728,14 +1456,6 @@ layers:
       unit: NANOSECONDS
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
-    - name: changefeed.sink_backpressure_nanos
-      exported_name: changefeed_sink_backpressure_nanos
-      description: Time spent waiting for quota when emitting to the sink (back-pressure). Only populated for sinks using the batching_sink wrapper. As of writing, this includes Kafka (v2), Pub/Sub (v2), and Webhook (v2).
-      y_axis_label: Nanoseconds
-      type: HISTOGRAM
-      unit: NANOSECONDS
-      aggregation: AVG
-      derivative: NONE
     - name: changefeed.sink_batch_hist_nanos
       exported_name: changefeed_sink_batch_hist_nanos
       description: Time spent batched in the sink buffer before being flushed and acknowledged
@@ -1811,30 +1531,6 @@ layers:
     - name: changefeed.stage.kv_feed_wait_for_table_event.latency
       exported_name: changefeed_stage_kv_feed_wait_for_table_event_latency
       description: 'Latency of the changefeed stage: waiting for a table schema event to join to the kv event'
-      y_axis_label: Latency
-      type: HISTOGRAM
-      unit: NANOSECONDS
-      aggregation: AVG
-      derivative: NONE
-    - name: changefeed.stage.pts.create.latency
-      exported_name: changefeed_stage_pts_create_latency
-      description: 'Latency of the changefeed stage: Time spent creating protected timestamp records on changefeed creation'
-      y_axis_label: Latency
-      type: HISTOGRAM
-      unit: NANOSECONDS
-      aggregation: AVG
-      derivative: NONE
-    - name: changefeed.stage.pts.manage.latency
-      exported_name: changefeed_stage_pts_manage_latency
-      description: 'Latency of the changefeed stage: Time spent successfully managing protected timestamp records on highwater advance, including time spent creating new protected timestamps when needed'
-      y_axis_label: Latency
-      type: HISTOGRAM
-      unit: NANOSECONDS
-      aggregation: AVG
-      derivative: NONE
-    - name: changefeed.stage.pts.manage_error.latency
-      exported_name: changefeed_stage_pts_manage_error_latency
-      description: 'Latency of the changefeed stage: Time spent managing protected timestamp when we eventually error'
       y_axis_label: Latency
       type: HISTOGRAM
       unit: NANOSECONDS
@@ -3252,18 +2948,6 @@ layers:
       exported_name: distsender_rpc_export_sent
       description: |-
         Number of Export requests processed.
-
-        This counts the requests in batches handed to DistSender, not the RPCs
-        sent to individual Ranges as a result.
-      y_axis_label: RPCs
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: distsender.rpc.flushlocktable.sent
-      exported_name: distsender_rpc_flushlocktable_sent
-      description: |-
-        Number of FlushLockTable requests processed.
 
         This counts the requests in batches handed to DistSender, not the RPCs
         sent to individual Ranges as a result.
@@ -5378,114 +5062,6 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
-    - name: jobs.inspect.currently_idle
-      exported_name: jobs_inspect_currently_idle
-      labeled_name: 'jobs{type: inspect, status: currently_idle}'
-      description: Number of inspect jobs currently considered Idle and can be freely shut down
-      y_axis_label: jobs
-      type: GAUGE
-      unit: COUNT
-      aggregation: AVG
-      derivative: NONE
-    - name: jobs.inspect.currently_paused
-      exported_name: jobs_inspect_currently_paused
-      labeled_name: 'jobs{name: inspect, status: currently_paused}'
-      description: Number of inspect jobs currently considered Paused
-      y_axis_label: jobs
-      type: GAUGE
-      unit: COUNT
-      aggregation: AVG
-      derivative: NONE
-    - name: jobs.inspect.currently_running
-      exported_name: jobs_inspect_currently_running
-      labeled_name: 'jobs{type: inspect, status: currently_running}'
-      description: Number of inspect jobs currently running in Resume or OnFailOrCancel state
-      y_axis_label: jobs
-      type: GAUGE
-      unit: COUNT
-      aggregation: AVG
-      derivative: NONE
-    - name: jobs.inspect.expired_pts_records
-      exported_name: jobs_inspect_expired_pts_records
-      labeled_name: 'jobs.expired_pts_records{type: inspect}'
-      description: Number of expired protected timestamp records owned by inspect jobs
-      y_axis_label: records
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: jobs.inspect.fail_or_cancel_completed
-      exported_name: jobs_inspect_fail_or_cancel_completed
-      labeled_name: 'jobs.fail_or_cancel{name: inspect, status: completed}'
-      description: Number of inspect jobs which successfully completed their failure or cancelation process
-      y_axis_label: jobs
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: jobs.inspect.fail_or_cancel_failed
-      exported_name: jobs_inspect_fail_or_cancel_failed
-      labeled_name: 'jobs.fail_or_cancel{name: inspect, status: failed}'
-      description: Number of inspect jobs which failed with a non-retriable error on their failure or cancelation process
-      y_axis_label: jobs
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: jobs.inspect.fail_or_cancel_retry_error
-      exported_name: jobs_inspect_fail_or_cancel_retry_error
-      labeled_name: 'jobs.fail_or_cancel{name: inspect, status: retry_error}'
-      description: Number of inspect jobs which failed with a retriable error on their failure or cancelation process
-      y_axis_label: jobs
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: jobs.inspect.protected_age_sec
-      exported_name: jobs_inspect_protected_age_sec
-      labeled_name: 'jobs.protected_age_sec{type: inspect}'
-      description: The age of the oldest PTS record protected by inspect jobs
-      y_axis_label: seconds
-      type: GAUGE
-      unit: SECONDS
-      aggregation: AVG
-      derivative: NONE
-    - name: jobs.inspect.protected_record_count
-      exported_name: jobs_inspect_protected_record_count
-      labeled_name: 'jobs.protected_record_count{type: inspect}'
-      description: Number of protected timestamp records held by inspect jobs
-      y_axis_label: records
-      type: GAUGE
-      unit: COUNT
-      aggregation: AVG
-      derivative: NONE
-    - name: jobs.inspect.resume_completed
-      exported_name: jobs_inspect_resume_completed
-      labeled_name: 'jobs.resume{name: inspect, status: completed}'
-      description: Number of inspect jobs which successfully resumed to completion
-      y_axis_label: jobs
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: jobs.inspect.resume_failed
-      exported_name: jobs_inspect_resume_failed
-      labeled_name: 'jobs.resume{name: inspect, status: failed}'
-      description: Number of inspect jobs which failed with a non-retriable error
-      y_axis_label: jobs
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: jobs.inspect.resume_retry_error
-      exported_name: jobs_inspect_resume_retry_error
-      labeled_name: 'jobs.resume{name: inspect, status: retry_error}'
-      description: Number of inspect jobs which failed with a retriable error
-      y_axis_label: jobs
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
     - name: jobs.key_visualizer.currently_idle
       exported_name: jobs_key_visualizer_currently_idle
       labeled_name: 'jobs{type: key_visualizer, status: currently_idle}'
@@ -7306,9 +6882,24 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
+    - name: logical_replication.commit_latency
+      exported_name: logical_replication_commit_latency
+      description: 'Event commit latency: a difference between event MVCC timestamp and the time it was flushed into disk. If we batch events, then the difference between the oldest event in the batch and flush is recorded'
+      y_axis_label: Nanoseconds
+      type: HISTOGRAM
+      unit: NANOSECONDS
+      aggregation: AVG
+      derivative: NONE
+    - name: logical_replication.events_dlqed
+      exported_name: logical_replication_events_dlqed
+      description: Row update events sent to DLQ
+      y_axis_label: Failures
+      type: COUNTER
+      unit: COUNT
+      aggregation: AVG
+      derivative: NON_NEGATIVE_DERIVATIVE
     - name: logical_replication.events_dlqed_age
       exported_name: logical_replication_events_dlqed_age
-      labeled_name: 'logical_replication.events{type: dlqed_age}'
       description: Row update events sent to DLQ due to reaching the maximum time allowed in the retry queue
       y_axis_label: Failures
       type: COUNTER
@@ -7325,7 +6916,6 @@ layers:
       derivative: NON_NEGATIVE_DERIVATIVE
     - name: logical_replication.events_dlqed_errtype
       exported_name: logical_replication_events_dlqed_errtype
-      labeled_name: 'logical_replication.events{type: dlqed_errtype}'
       description: Row update events sent to DLQ due to an error not considered retryable
       y_axis_label: Failures
       type: COUNTER
@@ -7334,9 +6924,16 @@ layers:
       derivative: NON_NEGATIVE_DERIVATIVE
     - name: logical_replication.events_dlqed_space
       exported_name: logical_replication_events_dlqed_space
-      labeled_name: 'logical_replication.events{type: dlqed_space}'
       description: Row update events sent to DLQ due to capacity of the retry queue
       y_axis_label: Failures
+      type: COUNTER
+      unit: COUNT
+      aggregation: AVG
+      derivative: NON_NEGATIVE_DERIVATIVE
+    - name: logical_replication.events_ingested
+      exported_name: logical_replication_events_ingested
+      description: Events ingested by all replication jobs
+      y_axis_label: Events
       type: COUNTER
       unit: COUNT
       aggregation: AVG
@@ -7351,7 +6948,6 @@ layers:
       derivative: NON_NEGATIVE_DERIVATIVE
     - name: logical_replication.events_initial_failure
       exported_name: logical_replication_events_initial_failure
-      labeled_name: 'logical_replication.events{type: initial_failure}'
       description: Failed attempts to apply an incoming row update
       y_axis_label: Failures
       type: COUNTER
@@ -7360,16 +6956,14 @@ layers:
       derivative: NON_NEGATIVE_DERIVATIVE
     - name: logical_replication.events_initial_success
       exported_name: logical_replication_events_initial_success
-      labeled_name: 'logical_replication.events{type: initial_success}'
       description: Successful applications of an incoming row update
-      y_axis_label: Successes
+      y_axis_label: Failures
       type: COUNTER
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
     - name: logical_replication.events_retry_failure
       exported_name: logical_replication_events_retry_failure
-      labeled_name: 'logical_replication.events{type: retry_failure}'
       description: Failed re-attempts to apply a row update
       y_axis_label: Failures
       type: COUNTER
@@ -7378,9 +6972,8 @@ layers:
       derivative: NON_NEGATIVE_DERIVATIVE
     - name: logical_replication.events_retry_success
       exported_name: logical_replication_events_retry_success
-      labeled_name: 'logical_replication.events{type: retry_success}'
       description: Row update events applied after one or more retries
-      y_axis_label: Successes
+      y_axis_label: Failures
       type: COUNTER
       unit: COUNT
       aggregation: AVG
@@ -7401,6 +6994,14 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
+    - name: logical_replication.logical_bytes
+      exported_name: logical_replication_logical_bytes
+      description: Logical bytes (sum of keys + values) received by all replication jobs
+      y_axis_label: Bytes
+      type: COUNTER
+      unit: BYTES
+      aggregation: AVG
+      derivative: NON_NEGATIVE_DERIVATIVE
     - name: logical_replication.replan_count
       exported_name: logical_replication_replan_count
       description: Total number of dist sql replanning events
@@ -7412,6 +7013,14 @@ layers:
     - name: logical_replication.replicated_time_by_label
       exported_name: logical_replication_replicated_time_by_label
       description: Replicated time of the logical replication stream by label
+      y_axis_label: Seconds
+      type: GAUGE
+      unit: SECONDS
+      aggregation: AVG
+      derivative: NONE
+    - name: logical_replication.replicated_time_seconds
+      exported_name: logical_replication_replicated_time_seconds
+      description: The replicated time of the logical replication stream in seconds since the unix epoch.
       y_axis_label: Seconds
       type: GAUGE
       unit: SECONDS
@@ -7537,6 +7146,22 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
+    - name: physical_replication.logical_bytes
+      exported_name: physical_replication_logical_bytes
+      description: Logical bytes (sum of keys + values) ingested by all replication jobs
+      y_axis_label: Bytes
+      type: COUNTER
+      unit: BYTES
+      aggregation: AVG
+      derivative: NON_NEGATIVE_DERIVATIVE
+    - name: physical_replication.replicated_time_seconds
+      exported_name: physical_replication_replicated_time_seconds
+      description: The replicated time of the physical replication stream in seconds since the unix epoch.
+      y_axis_label: Seconds
+      type: GAUGE
+      unit: SECONDS
+      aggregation: AVG
+      derivative: NONE
     - name: physical_replication.resolved_events_ingested
       exported_name: physical_replication_resolved_events_ingested
       description: Resolved events ingested by all replication jobs
@@ -9352,22 +8977,6 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.stats.ingester.num_processed
-      exported_name: sql_stats_ingester_num_processed
-      description: Number of items processed by the SQL stats ingester
-      y_axis_label: Items
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: sql.stats.ingester.queue_size
-      exported_name: sql_stats_ingester_queue_size
-      description: Current number of items queued in the SQL stats ingester
-      y_axis_label: Items
-      type: GAUGE
-      unit: COUNT
-      aggregation: AVG
-      derivative: NONE
     - name: sql.stats.mem.current
       exported_name: sql_stats_mem_current
       description: Current memory usage for fingerprint storage
@@ -10418,30 +10027,6 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
-    - name: log.otlp.sink.grpc.transparent_retries
-      exported_name: log_otlp_sink_grpc_transparent_retries
-      description: Number of transparent retries done by otlp-server logging sinks when using GRPC
-      y_axis_label: Retries
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: log.otlp.sink.write.attempts
-      exported_name: log_otlp_sink_write_attempts
-      description: Number of write attempts experienced by otlp-server logging sinks
-      y_axis_label: Attempts
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: log.otlp.sink.write.errors
-      exported_name: log_otlp_sink_write_errors
-      description: Number of write errors experienced by otlp-server logging sinks
-      y_axis_label: Errors
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
     - name: sys.cgo.allocbytes
       exported_name: sys_cgo_allocbytes
       description: Current bytes of memory allocated by cgo
@@ -10581,14 +10166,6 @@ layers:
     - name: sys.go.heap.heapreservedbytes
       exported_name: sys_go_heap_heapreservedbytes
       description: Total bytes reserved by heap, derived from bytes in idle (unused) spans subtracts bytes returned to the OS
-      y_axis_label: Memory
-      type: GAUGE
-      unit: BYTES
-      aggregation: AVG
-      derivative: NONE
-    - name: sys.go.limitbytes
-      exported_name: sys_go_limitbytes
-      description: Go soft memory limit
       y_axis_label: Memory
       type: GAUGE
       unit: BYTES
@@ -12969,6 +12546,14 @@ layers:
       y_axis_label: Memory
       type: GAUGE
       unit: BYTES
+      aggregation: AVG
+      derivative: NONE
+    - name: kv.rangefeed.mux_stream_send.latency
+      exported_name: kv_rangefeed_mux_stream_send_latency
+      description: Latency of sending RangeFeed events to the client
+      y_axis_label: Latency
+      type: HISTOGRAM
+      unit: NANOSECONDS
       aggregation: AVG
       derivative: NONE
     - name: kv.rangefeed.mux_stream_send.slow_events
@@ -15612,24 +15197,6 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NONE
-    - name: ranges.decommissioning.nudger.enqueue
-      exported_name: ranges_decommissioning_nudger_enqueue
-      labeled_name: 'ranges.decommissioning.nudger.enqueue{status: enqueue}'
-      description: 'Number of enqueued enqueues of a range for decommissioning by the decommissioning nudger. Note: This metric tracks when the nudger attempts to enqueue, but the replica might not end up being enqueued by the priority queue due to various filtering or failure conditions.'
-      y_axis_label: Ranges
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: ranges.decommissioning.nudger.not_leaseholder_or_invalid_lease
-      exported_name: ranges_decommissioning_nudger_not_leaseholder_or_invalid_lease
-      labeled_name: ranges.decommissioning.nudger.not_leaseholder_or_invalid_lease
-      description: Number of enqueues of a range for decommissioning by the decommissioning nudger that were not the leaseholder or had an invalid lease
-      y_axis_label: Ranges
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
     - name: ranges.overreplicated
       exported_name: ranges_overreplicated
       description: Number of ranges with more live replicas than the replication target
@@ -15938,7 +15505,7 @@ layers:
       description: Number of disk reads per query
       y_axis_label: Disk Reads per Query
       type: GAUGE
-      unit: CONST
+      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: rocksdb.table-readers-mem-estimate
@@ -16096,14 +15663,6 @@ layers:
     - name: rpc.method.export.recv
       exported_name: rpc_method_export_recv
       description: Number of Export requests processed
-      y_axis_label: RPCs
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
-    - name: rpc.method.flushlocktable.recv
-      exported_name: rpc_method_flushlocktable_recv
-      description: Number of FlushLockTable requests processed
       y_axis_label: RPCs
       type: COUNTER
       unit: COUNT
@@ -16558,78 +16117,6 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
-    - name: storage.compression.cr
-      exported_name: storage_compression_cr
-      description: Average compression ratio of sstable and blob value data.
-      y_axis_label: Ratio
-      type: GAUGE
-      unit: CONST
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.compression.minlz.bytes
-      exported_name: storage_compression_minlz_bytes
-      description: Total on disk size of sstable and blob value data that is compressed with the MinLZ algorithm.
-      y_axis_label: Bytes
-      type: GAUGE
-      unit: CONST
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.compression.minlz.cr
-      exported_name: storage_compression_minlz_cr
-      description: Average compression ratio of sstable and blob value data that is compressed with the MinLZ algorithm.
-      y_axis_label: Ratio
-      type: GAUGE
-      unit: CONST
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.compression.none.bytes
-      exported_name: storage_compression_none_bytes
-      description: Total on disk size of sstable and blob value data that is not compressed.
-      y_axis_label: Bytes
-      type: GAUGE
-      unit: BYTES
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.compression.snappy.bytes
-      exported_name: storage_compression_snappy_bytes
-      description: Total on disk size of sstable and blob value data that is compressed with the Snappy algorithm.
-      y_axis_label: Bytes
-      type: GAUGE
-      unit: BYTES
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.compression.snappy.cr
-      exported_name: storage_compression_snappy_cr
-      description: Average compression ratio of sstable and blob value data that is compressed with the snappy algorithm.
-      y_axis_label: Ratio
-      type: GAUGE
-      unit: CONST
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.compression.unknown.bytes
-      exported_name: storage_compression_unknown_bytes
-      description: Total on disk size of sstable and blob value data that is compressed but for which we have no compression statistics.
-      y_axis_label: Bytes
-      type: GAUGE
-      unit: BYTES
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.compression.zstd.bytes
-      exported_name: storage_compression_zstd_bytes
-      description: Total on disk size of sstable and blob value data that is compressed with the Zstd algorithm.
-      y_axis_label: Bytes
-      type: GAUGE
-      unit: BYTES
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.compression.zstd.cr
-      exported_name: storage_compression_zstd_cr
-      description: Average compression ratio of sstable and blob value data that is compressed with the Zstd algorithm.
-      y_axis_label: Ratio
-      type: GAUGE
-      unit: CONST
-      aggregation: AVG
-      derivative: NONE
     - name: storage.disk-slow
       exported_name: storage_disk_slow
       description: Number of instances of disk operations taking longer than 10s
@@ -16670,14 +16157,6 @@ layers:
       unit: BYTES
       aggregation: AVG
       derivative: NONE
-    - name: storage.disk.read-max.iops
-      exported_name: storage_disk_read_max_iops
-      description: Maximum rate of read operations performed on the disk (as reported by the OS)
-      y_axis_label: Operations
-      type: GAUGE
-      unit: COUNT
-      aggregation: AVG
-      derivative: NONE
     - name: storage.disk.read.bytes
       exported_name: storage_disk_read_bytes
       description: Bytes read from the store's disk since this process started (as reported by the OS)
@@ -16716,14 +16195,6 @@ layers:
       y_axis_label: Bytes
       type: GAUGE
       unit: BYTES
-      aggregation: AVG
-      derivative: NONE
-    - name: storage.disk.write-max.iops
-      exported_name: storage_disk_write_max_iops
-      description: Maximum rate of write operations performed on the disk (as reported by the OS)
-      y_axis_label: Operations
-      type: GAUGE
-      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: storage.disk.write.bytes
@@ -17241,7 +16712,7 @@ layers:
       description: Compaction score of level 0
       y_axis_label: Score
       type: GAUGE
-      unit: CONST
+      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: storage.l0-level-size
@@ -17281,7 +16752,7 @@ layers:
       description: Compaction score of level 1
       y_axis_label: Score
       type: GAUGE
-      unit: CONST
+      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: storage.l1-level-size
@@ -17305,7 +16776,7 @@ layers:
       description: Compaction score of level 2
       y_axis_label: Score
       type: GAUGE
-      unit: CONST
+      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: storage.l2-level-size
@@ -17329,7 +16800,7 @@ layers:
       description: Compaction score of level 3
       y_axis_label: Score
       type: GAUGE
-      unit: CONST
+      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: storage.l3-level-size
@@ -17353,7 +16824,7 @@ layers:
       description: Compaction score of level 4
       y_axis_label: Score
       type: GAUGE
-      unit: CONST
+      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: storage.l4-level-size
@@ -17377,7 +16848,7 @@ layers:
       description: Compaction score of level 5
       y_axis_label: Score
       type: GAUGE
-      unit: CONST
+      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: storage.l5-level-size
@@ -17401,7 +16872,7 @@ layers:
       description: Compaction score of level 6
       y_axis_label: Score
       type: GAUGE
-      unit: CONST
+      unit: COUNT
       aggregation: AVG
       derivative: NONE
     - name: storage.l6-level-size
@@ -17556,6 +17027,38 @@ layers:
       unit: COUNT
       aggregation: AVG
       derivative: NON_NEGATIVE_DERIVATIVE
+    - name: storage.sstable.compression.none.count
+      exported_name: storage_sstable_compression_none_count
+      description: Count of SSTables that are uncompressed.
+      y_axis_label: SSTables
+      type: GAUGE
+      unit: COUNT
+      aggregation: AVG
+      derivative: NONE
+    - name: storage.sstable.compression.snappy.count
+      exported_name: storage_sstable_compression_snappy_count
+      description: Count of SSTables that have been compressed with the snappy compression algorithm.
+      y_axis_label: SSTables
+      type: GAUGE
+      unit: COUNT
+      aggregation: AVG
+      derivative: NONE
+    - name: storage.sstable.compression.unknown.count
+      exported_name: storage_sstable_compression_unknown_count
+      description: Count of SSTables that have an unknown compression algorithm.
+      y_axis_label: SSTables
+      type: GAUGE
+      unit: COUNT
+      aggregation: AVG
+      derivative: NONE
+    - name: storage.sstable.compression.zstd.count
+      exported_name: storage_sstable_compression_zstd_count
+      description: Count of SSTables that have been compressed with the zstd compression algorithm.
+      y_axis_label: SSTables
+      type: GAUGE
+      unit: COUNT
+      aggregation: AVG
+      derivative: NONE
     - name: storage.sstable.remote.bytes
       exported_name: storage_sstable_remote_bytes
       description: Bytes in SSTables that are stored off-disk (remotely) in object storage.
@@ -17612,14 +17115,6 @@ layers:
       unit: BYTES
       aggregation: AVG
       derivative: NONE
-    - name: storage.value_separation.value_retrieval.count
-      exported_name: storage_value_separation_value_retrieval_count
-      description: The number of value retrievals of values separated into blob files.
-      y_axis_label: Events
-      type: COUNTER
-      unit: COUNT
-      aggregation: AVG
-      derivative: NON_NEGATIVE_DERIVATIVE
     - name: storage.wal.bytes_in
       exported_name: storage_wal_bytes_in
       description: The number of logical bytes the storage engine has written to the WAL

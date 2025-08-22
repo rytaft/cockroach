@@ -19,7 +19,6 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/util/timeutil"
 	"github.com/cockroachdb/errors"
 	"github.com/cockroachdb/redact"
-	"github.com/gogo/protobuf/proto"
 )
 
 // EventLogger is a convenience object used for logging schema changer events.
@@ -41,7 +40,7 @@ func StartEventf(
 	// Use depth=1 since we want to log as the caller of StartEventf.
 	const depth = 1
 	if log.VDepth(level, depth) {
-		log.Dev.InfofDepth(ctx, depth, "%s", msg)
+		log.InfofDepth(ctx, depth, "%s", msg)
 	}
 	return EventLogger{
 		msg:   msg,
@@ -74,7 +73,7 @@ func (el EventLogger) HandlePanicAndLogError(ctx context.Context, err *error) {
 	switch {
 	case *err == nil:
 		if log.ExpensiveLogEnabled(ctx, 2) {
-			log.Dev.InfofDepth(ctx, depth, "done %s in %s", el.msg, redact.Safe(timeutil.Since(el.start)))
+			log.InfofDepth(ctx, depth, "done %s in %s", el.msg, redact.Safe(timeutil.Since(el.start)))
 		}
 	case HasNotImplemented(*err):
 		log.VEventfDepth(ctx, depth, 1, "declarative schema changer does not support %s: %v", el.msg, *err)
@@ -207,26 +206,12 @@ func (e *schemaChangerUserError) SafeFormatError(p errors.Printer) (next error) 
 	return e.err
 }
 
-// Error implements error.
 func (e *schemaChangerUserError) Error() string {
 	// We don't want to print the schemaChangerUserError wrapper in the error,
 	// this only serves as a marker to the declarative schema changer to surface.
 	return fmt.Sprintf("%v", e.err)
 }
 
-// Unwrap implements errors.Wrapper.
 func (e *schemaChangerUserError) Unwrap() error {
 	return e.err
-}
-
-// schemaChangerUserErrorDecodeWrapper is a wrapper decoder for
-// schemaChangerUserError.
-func schemaChangerUserErrorDecodeWrapper(
-	_ context.Context, cause error, _ string, _ []string, payload proto.Message,
-) error {
-	return &schemaChangerUserError{err: cause}
-}
-
-func init() {
-	errors.RegisterWrapperDecoder(errors.GetTypeKey((*schemaChangerUserError)(nil)), schemaChangerUserErrorDecodeWrapper)
 }

@@ -1152,8 +1152,6 @@ indexrelid  indrelid  indnatts  indisunique  indnullsnotdistinct  indisprimary  
 663840575   42        3         false        false                false         false           false         false           true        false         false       true       false           1 5 18                  0 3403232968 0             0 0 0          2 2 1          NULL      app_name NOT LIKE '$ internal%'::STRING                                                                                       3
 710236230   58        1         true         false                true          false           true          false           true        false         false       true       false           1                       0                          0              2              NULL      NULL                                                                                                                          1
 803027558   26        3         true         false                true          false           true          false           true        false         false       true       false           1 2 3                   0 0 3403232968             0 0 0          2 2 2          NULL      NULL                                                                                                                          3
-830785509   73        1         true         false                true          false           true          false           true        false         false       true       false           1                       0                          0              2              NULL      NULL                                                                                                                          1
-830785510   73        1         false        false                false         false           false         false           true        false         false       true       false           6                       0                          0              2              NULL      NULL                                                                                                                          1
 923576837   41        1         true         false                true          false           true          false           true        false         false       true       false           1                       0                          0              2              NULL      NULL                                                                                                                          1
 969972501   57        1         true         false                true          false           true          false           true        false         false       true       false           1                       0                          0              2              NULL      NULL                                                                                                                          1
 969972502   57        1         true         false                false         false           true          false           true        false         false       true       false           2                       0                          0              2              NULL      NULL                                                                                                                          1
@@ -1328,8 +1326,6 @@ indexrelid  operator_argument_type_oid  operator_argument_position
 803027558   0                           1
 803027558   0                           2
 803027558   0                           3
-830785509   0                           1
-830785510   0                           1
 923576837   0                           1
 969972501   0                           1
 969972502   0                           1
@@ -1983,8 +1979,6 @@ oid     typname                typnamespace  typowner    typlen  typbyval  typty
 90007   _vector                4294967094    NULL        -1      false     b
 90008   citext                 4294967094    NULL        -1      false     b
 90009   _citext                4294967094    NULL        -1      false     b
-90010   ltree                  4294967094    NULL        -1      false     b
-90011   _ltree                 4294967094    NULL        -1      false     b
 100110  t1                     109           1546506610  -1      false     c
 100111  t1_m_seq               109           1546506610  -1      false     c
 100112  t1_n_seq               109           1546506610  -1      false     c
@@ -2108,8 +2102,6 @@ oid     typname                typcategory  typispreferred  typisdefined  typdel
 90007   _vector                A            false           true          ,         0         90006    0
 90008   citext                 S            false           true          ,         0         0        90009
 90009   _citext                A            false           true          ,         0         90008    0
-90010   ltree                  U            false           true          ,         0         0        90011
-90011   _ltree                 A            false           true          ,         0         90010    0
 100110  t1                     C            false           true          ,         110       0        0
 100111  t1_m_seq               C            false           true          ,         111       0        0
 100112  t1_n_seq               C            false           true          ,         112       0        0
@@ -2201,10 +2193,10 @@ oid     typname                typinput        typoutput        typreceive      
 2210    _regclass              array_in        array_out        array_recv        array_send        0         0          0
 2211    _regtype               array_in        array_out        array_recv        array_send        0         0          0
 2249    record                 record_in       record_out       record_recv       record_send       0         0          0
-2276    any                    any_in          any_out          -                 -                 0         0          0
+2276    any                    -               -                -                 -                 0         0          0
 2277    anyarray               anyarray_in     anyarray_out     anyarray_recv     anyarray_send     0         0          0
 2278    void                   voidin          voidout          voidrecv          voidsend          0         0          0
-2279    trigger                trigger_in      trigger_out      -                 -                 0         0          0
+2279    trigger                -               -                -                 -                 0         0          0
 2283    anyelement             anyelement_in   anyelement_out   anyelement_recv   anyelement_send   0         0          0
 2287    _record                array_in        array_out        array_recv        array_send        0         0          0
 2950    uuid                   uuid_in         uuid_out         uuid_recv         uuid_send         0         0          0
@@ -2233,8 +2225,6 @@ oid     typname                typinput        typoutput        typreceive      
 90007   _vector                array_in        array_out        array_recv        array_send        0         0          0
 90008   citext                 citextin        citextout        citextrecv        citextsend        0         0          0
 90009   _citext                array_in        array_out        array_recv        array_send        0         0          0
-90010   ltree                  ltreein         ltreeout         ltreerecv         ltreesend         0         0          0
-90011   _ltree                 array_in        array_out        array_recv        array_send        0         0          0
 100110  t1                     record_in       record_out       record_recv       record_send       0         0          0
 100111  t1_m_seq               record_in       record_out       record_recv       record_send       0         0          0
 100112  t1_n_seq               record_in       record_out       record_recv       record_send       0         0          0
@@ -2358,8 +2348,6 @@ oid     typname                typalign  typstorage  typnotnull  typbasetype  ty
 90007   _vector                NULL      NULL        false       0            -1
 90008   citext                 NULL      NULL        false       0            -1
 90009   _citext                NULL      NULL        false       0            -1
-90010   ltree                  NULL      NULL        false       0            -1
-90011   _ltree                 NULL      NULL        false       0            -1
 100110  t1                     NULL      NULL        false       0            -1
 100111  t1_m_seq               NULL      NULL        false       0            -1
 100112  t1_n_seq               NULL      NULL        false       0            -1
@@ -2483,8 +2471,6 @@ oid     typname                typndims  typcollation  typdefaultbin  typdefault
 90007   _vector                0         0             NULL           NULL        NULL
 90008   citext                 0         3908466058    NULL           NULL        NULL
 90009   _citext                0         0             NULL           NULL        NULL
-90010   ltree                  0         0             NULL           NULL        NULL
-90011   _ltree                 0         0             NULL           NULL        NULL
 100110  t1                     0         0             NULL           NULL        NULL
 100111  t1_m_seq               0         0             NULL           NULL        NULL
 100112  t1_n_seq               0         0             NULL           NULL        NULL
@@ -2950,7 +2936,6 @@ name                                                             setting        
 allow_create_trigger_function_with_argv_references               off                 NULL      NULL        NULL        string
 allow_ordinal_column_references                                  off                 NULL      NULL        NULL        string
 allow_role_memberships_to_change_during_transaction              off                 NULL      NULL        NULL        string
-allow_unsafe_internals                                           on                  NULL      NULL        NULL        string
 alter_primary_region_super_region_override                       off                 NULL      NULL        NULL        string
 always_distribute_full_scans                                     off                 NULL      NULL        NULL        string
 application_name                                                 ·                   NULL      NULL        NULL        string
@@ -3012,7 +2997,6 @@ enable_implicit_transaction_for_batch_statements                 on             
 enable_insert_fast_path                                          on                  NULL      NULL        NULL        string
 enable_multiple_modifications_of_table                           off                 NULL      NULL        NULL        string
 enable_multiregion_placement_policy                              off                 NULL      NULL        NULL        string
-enable_scrub_job                                                 off                 NULL      NULL        NULL        string
 enable_seqscan                                                   on                  NULL      NULL        NULL        string
 enable_shared_locking_for_serializable                           off                 NULL      NULL        NULL        string
 enable_super_regions                                             off                 NULL      NULL        NULL        string
@@ -3192,7 +3176,6 @@ name                                                             setting        
 allow_create_trigger_function_with_argv_references               off                 NULL  user     NULL      off                 off
 allow_ordinal_column_references                                  off                 NULL  user     NULL      off                 off
 allow_role_memberships_to_change_during_transaction              off                 NULL  user     NULL      off                 off
-allow_unsafe_internals                                           on                  NULL  user     NULL      on                  on
 alter_primary_region_super_region_override                       off                 NULL  user     NULL      off                 off
 always_distribute_full_scans                                     off                 NULL  user     NULL      off                 off
 application_name                                                 ·                   NULL  user     NULL      ·                   ·
@@ -3254,7 +3237,6 @@ enable_implicit_transaction_for_batch_statements                 on             
 enable_insert_fast_path                                          on                  NULL  user     NULL      on                  on
 enable_multiple_modifications_of_table                           off                 NULL  user     NULL      off                 off
 enable_multiregion_placement_policy                              off                 NULL  user     NULL      off                 off
-enable_scrub_job                                                 off                 NULL  user     NULL      off                 off
 enable_seqscan                                                   on                  NULL  user     NULL      on                  on
 enable_shared_locking_for_serializable                           off                 NULL  user     NULL      off                 off
 enable_super_regions                                             off                 NULL  user     NULL      off                 off
@@ -3418,7 +3400,6 @@ name                                                             source  min_val
 allow_create_trigger_function_with_argv_references               NULL    NULL     NULL     NULL        NULL
 allow_ordinal_column_references                                  NULL    NULL     NULL     NULL        NULL
 allow_role_memberships_to_change_during_transaction              NULL    NULL     NULL     NULL        NULL
-allow_unsafe_internals                                           NULL    NULL     NULL     NULL        NULL
 alter_primary_region_super_region_override                       NULL    NULL     NULL     NULL        NULL
 always_distribute_full_scans                                     NULL    NULL     NULL     NULL        NULL
 application_name                                                 NULL    NULL     NULL     NULL        NULL
@@ -3484,7 +3465,6 @@ enable_implicit_transaction_for_batch_statements                 NULL    NULL   
 enable_insert_fast_path                                          NULL    NULL     NULL     NULL        NULL
 enable_multiple_modifications_of_table                           NULL    NULL     NULL     NULL        NULL
 enable_multiregion_placement_policy                              NULL    NULL     NULL     NULL        NULL
-enable_scrub_job                                                 NULL    NULL     NULL     NULL        NULL
 enable_seqscan                                                   NULL    NULL     NULL     NULL        NULL
 enable_shared_locking_for_serializable                           NULL    NULL     NULL     NULL        NULL
 enable_super_regions                                             NULL    NULL     NULL     NULL        NULL
@@ -3931,7 +3911,6 @@ oid         oprname  aggsortop
 1778355034  >        1778355034
 3944320082  >        3944320082
 1385359122  >        1385359122
-4286072550  >        4286072550
 
 # Check whether correct operator's oid is set for min, bool_and and every.
 query OTO colnames,rowsort
@@ -3968,7 +3947,6 @@ oid         oprname  aggsortop
 3675947880  <        3675947880
 3575809104  <        3575809104
 1579888144  <        1579888144
-1914008044  <        1914008044
 
 subtest collated_string_type
 

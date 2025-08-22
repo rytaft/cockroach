@@ -247,7 +247,7 @@ func (h *ProcOutputHelper) EmitRow(
 	// TODO(yuzefovich): consider removing this logging since the verbosity
 	// check is not exactly free.
 	if log.V(3) {
-		log.Dev.InfofDepth(ctx, 1, "pushing row %s", outRow.String(h.OutputTypes))
+		log.InfofDepth(ctx, 1, "pushing row %s", outRow.String(h.OutputTypes))
 	}
 	if r := output.Push(outRow, nil); r != NeedMoreRows {
 		log.VEventf(ctx, 1, "no more rows required. drain requested: %t",
@@ -451,13 +451,13 @@ type procState int
 func (i procState) SafeFormat(s interfaces.SafePrinter, verb rune) {
 	switch i {
 	case StateRunning:
-		s.SafeString("StateRunning")
+		s.Print("StateRunning")
 	case StateDraining:
-		s.SafeString("StateDraining")
+		s.Print("StateDraining")
 	case StateTrailingMeta:
-		s.SafeString("StateTrailingMeta")
+		s.Print("StateTrailingMeta")
 	case StateExhausted:
-		s.SafeString("StateExhausted")
+		s.Print("StateExhausted")
 	}
 }
 
